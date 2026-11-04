@@ -1,35 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:device_preview/device_preview.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
-/*-------------------------------------*/
-
-import 'pages_login/cadastro.dart';
-import 'pages_login/login.dart';
-import 'pages_login/resgatar_senha.dart';
-import './pages_login/tela_temporaria4.dart';
-
-/*-------------------------------------*/
-
-import './pages_home/tela_temporaria3.dart';
-import './pages_home/home.dart';
-
-/*--------------------------------------*/
-
-import './pages_configurar/controle_objetivo.dart';
-import 'pages_configurar/objetivo_leitura.dart';
-import 'pages_configurar/objetivo_conteudo.dart';
-import 'pages_configurar/objetivo_estudo.dart';
-import './pages_configurar/tela_temporaria1.dart';
-import './pages_configurar/tela_temporaria2.dart';
-
-
+import 'pages_configurar/controle_objetivo.dart';
+import 'pages_login/tela_temporaria4.dart';
 
 void main() {
   runApp(
     DevicePreview(
       enabled: !kReleaseMode,
-      builder: (context) =>  const MainApp(),
+      builder: (context) => const MainApp(),
     ),
   );
 }
@@ -39,18 +19,17 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-      return MaterialApp(
-        locale: DevicePreview.locale(context),
-        navigatorKey: navigatorKey,
-          builder: (context, child) => SessaoGuard(child: child!),
-        debugShowCheckedModeBanner: false,
-        title: 'Ikai',
-        theme: ThemeData(
-          colorSchemeSeed: Colors.blue,
-          useMaterial3: true
-        ),     
-        home: InicioPage4(),
-      );
-    
+    return MaterialApp(
+      locale: DevicePreview.locale(context),
+      navigatorKey: navigatorKey,
+      builder: (context, child) => SessaoGuard(child: child!),
+      debugShowCheckedModeBanner: false,
+      title: 'Ikai',
+      theme: ThemeData(
+        colorSchemeSeed: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: const InicioPage4(),
+    );
   }
 }
