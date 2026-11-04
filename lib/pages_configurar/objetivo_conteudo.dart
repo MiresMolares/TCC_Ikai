@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import './controle_objetivo.dart';
 
-/// Categorias de "Ver conteúdo". Só "Científico" está confirmado.
+/// Categorias de "Ver conteúdo".
 /// Para adicionar outra, inclua uma linha `Categoria(...)` aqui.
 const List<Categoria> _categoriasConteudo = [
   Categoria(
@@ -9,27 +9,27 @@ const List<Categoria> _categoriasConteudo = [
     titulo: 'Científico',
     icone: Icons.science_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'ver_cultura',
     titulo: 'Cultura',
     icone: Icons.museum_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'ver_jogos',
     titulo: 'Jogos',
     icone: Icons.sports_esports_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'ver_noticia',
     titulo: 'Notícias',
     icone: Icons.newspaper_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'ver_esporte',
     titulo: 'Esporte',
     icone: Icons.sports_soccer_outlined,
   ),
-      Categoria(
+  Categoria(
     id: 'ver_curiosidades',
     titulo: 'Curiosidades',
     icone: Icons.lightbulb_outline,
@@ -41,6 +41,4 @@ final Objetivo objetivoConteudo = Objetivo(
   titulo: 'Ver conteúdo',
   icone: Icons.play_circle_outline,
   categorias: _categoriasConteudo,
-  construirTela: (props) =>
-      ListaCategorias(categorias: _categoriasConteudo, props: props),
 );
