@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 
 import '../core/sem_emoji.dart';
@@ -24,7 +25,13 @@ enum FonteSugestoes { gemini, local }
 class SugestoesIkAi {
   final List<String> itens;
   final FonteSugestoes fonte;
-  const SugestoesIkAi(this.itens, this.fonte);
+
+  /// Quando a fonte é local, diz POR QUÊ (sem chave, sem autorização, HTTP
+  /// 404, timeout...). Serve para quem desenvolve descobrir que o Gemini
+  /// não está respondendo; o usuário não precisa ver isso.
+  final String? motivoLocal;
+
+  const SugestoesIkAi(this.itens, this.fonte, {this.motivoLocal});
 }
 
 /// Tudo o que a Ik AI recebe. Só o que o usuário declarou e escolheu.
@@ -104,9 +111,16 @@ class GeminiService {
   /// Nunca lança exceção: sempre devolve 3 sugestões.
   Future<SugestoesIkAi> gerarSugestoes(ContextoSessao ctx) async {
     final texto = ctx.textoDeclarado.trim();
-    final podeUsarIa = configurado && ctx.permitiuEnvio && texto.isNotEmpty;
+    String? motivo;
+    if (!configurado) {
+      motivo = 'sem chave do Gemini (GEMINI_API_KEY)';
+    } else if (!ctx.permitiuEnvio) {
+      motivo = 'usuário não autorizou o envio';
+    } else if (texto.isEmpty) {
+      motivo = 'usuário não escreveu nada para a Ik AI';
+    }
 
-    if (podeUsarIa) {
+    if (motivo == null) {
       try {
         final r = await _enviar(
           _url,
@@ -122,10 +136,17 @@ class GeminiService {
           if (itens != null && itens.isNotEmpty) {
             return SugestoesIkAi(itens, FonteSugestoes.gemini);
           }
+          motivo = 'resposta do Gemini sem sugestões utilizáveis';
+        } else {
+          motivo = 'Gemini respondeu HTTP ${r.status} (modelo "$_modelo")';
         }
-      } catch (_) {
-        // Qualquer falha cai no plano B abaixo.
+      } catch (e) {
+        motivo = 'falha na chamada: ${e.runtimeType}';
       }
+    }
+    // Qualquer falha cai no plano B abaixo, mas deixa o motivo registrado.
+    if (motivo != null && ctx.permitiuEnvio) {
+      debugPrint('[Ik AI] sugestões locais: $motivo');
     }
 
     return SugestoesIkAi(
@@ -134,6 +155,7 @@ class GeminiService {
         objetivoTitulo: ctx.objetivoTitulo,
       ),
       FonteSugestoes.local,
+      motivoLocal: motivo,
     );
   }
 

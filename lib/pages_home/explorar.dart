@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import '../data/artigo.dart';
 import '../pages_configurar/controle_objetivo.dart';
 import '../services/artigos_repositorio.dart';
+import '../services/config_service.dart';
 import '../widgets/artigo_card.dart';
 import '../widgets/estilo.dart';
+import '../widgets/seletor_nivel.dart';
 
 /// Busca DENTRO do modo da sessão: o que está fora do modo escolhido não
 /// aparece aqui.
@@ -41,8 +43,18 @@ class _ExplorarPageState extends State<ExplorarPage> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ConfigService.instance,
+      builder: (context, _) => _construir(context),
+    );
+  }
+
+  Widget _construir(BuildContext context) {
     final c = ControleObjetivos.instance;
-    final base = ArtigosRepositorio.doModo(c.objetivo?.id, c.categoria?.id);
+    final base = ArtigosRepositorio.doNivel(
+      ArtigosRepositorio.doModo(c.objetivo?.id, c.categoria?.id),
+      ConfigService.instance.nivelConteudo,
+    );
     final consulta = _busca.text.trim();
     final List<Artigo> resultado = ArtigosRepositorio.buscar(consulta, base);
     final tags = ArtigosRepositorio.tagsDe(base);
@@ -63,6 +75,8 @@ class _ExplorarPageState extends State<ExplorarPage> {
           'Buscando em ${c.categoria?.titulo ?? 'sua sessão'}.',
           style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
         ),
+        const SizedBox(height: 12),
+        const SeletorNivel(),
         const SizedBox(height: 14),
         TextField(
           controller: _busca,

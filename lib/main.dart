@@ -2,8 +2,10 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'pages_configurar/controle_objetivo.dart';
 import 'pages_configurar/fluxo_objetivos_page.dart';
 import 'pages_configurar/sessao_guard.dart';
+import 'pages_home/home.dart';
 import 'pages_login/splash.dart';
 import 'services/auth_service.dart';
 import 'services/config_service.dart';
@@ -65,8 +67,9 @@ class RaizApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AuthService.instance.logado
-        ? const FluxoObjetivosPage()
-        : const SplashPage();
+    if (!AuthService.instance.logado) return const SplashPage();
+    return ControleObjetivos.instance.estado == EstadoSessao.ativa
+        ? const HomePage()
+        : const FluxoObjetivosPage();
   }
 }

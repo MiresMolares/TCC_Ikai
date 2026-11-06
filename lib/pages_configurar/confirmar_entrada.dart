@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../pages_login/login.dart';
 import '../services/sessao_usuario.dart';
 import '../widgets/estilo.dart';
+import '../pages_home/home.dart';
+import 'controle_objetivo.dart';
 import 'fluxo_objetivos_page.dart';
 
 /// Pilar 1: ao abrir o Ikai, ele pergunta se a pessoa realmente quer
@@ -81,7 +83,12 @@ class _ConfirmarEntradaPageState extends State<ConfirmarEntradaPage> {
     if (resposta == true) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const FluxoObjetivosPage()),
+        MaterialPageRoute(
+          builder: (context) =>
+              ControleObjetivos.instance.estado == EstadoSessao.ativa
+                  ? const HomePage() // sessão que continuava correndo
+                  : const FluxoObjetivosPage(),
+        ),
       );
       return;
     }

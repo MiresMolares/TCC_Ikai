@@ -120,6 +120,45 @@ void main() {
       expect(r.itens.length, equals(3));
     });
 
+    test('o motivo do plano B é informado (nada de erro escondido)', () async {
+      Future<String?> motivo(GeminiService svc, {bool permitiu = true}) async =>
+          (await svc.gerarSugestoes(_ctx(permitiu: permitiu))).motivoLocal;
+
+      expect(
+        await motivo(GeminiService(chave: '')),
+        contains('sem chave'),
+      );
+      expect(
+        await motivo(GeminiService(chave: 'K'), permitiu: false),
+        contains('não autorizou'),
+      );
+      final http404 = GeminiService(
+        chave: 'K',
+        modelo: 'modelo-antigo',
+        enviar: (u, h, b, l) async => const RespostaHttp(404, 'nao existe'),
+      );
+      final m404 = await motivo(http404);
+      expect(m404, contains('404'));
+      expect(m404, contains('modelo-antigo'));
+      final semRede = GeminiService(
+        chave: 'K',
+        enviar: (u, h, b, l) async => throw StateError('sem rede'),
+      );
+      expect(await motivo(semRede), contains('StateError'));
+      final lixo = GeminiService(
+        chave: 'K',
+        enviar: (u, h, b, l) async => const RespostaHttp(200, 'lixo'),
+      );
+      expect(await motivo(lixo), contains('sem sugestões'));
+      // Quando o Gemini responde, não há motivo.
+      final ok = GeminiService(
+        chave: 'K',
+        enviar: (u, h, b, l) async =>
+            RespostaHttp(200, _corpoApi(_sugestoesOk)),
+      );
+      expect(await motivo(ok), isNull);
+    });
+
     test('exceção de rede e tempo esgotado caem nas sugestões locais',
         () async {
       for (final erro in <Object>[

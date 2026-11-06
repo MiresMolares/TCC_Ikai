@@ -30,6 +30,18 @@ class RelogioSessao {
       ..start();
   }
 
+  /// Retoma uma sessão que já tinha [decorridoAnterior] de uso (app fechado
+  /// e aberto de novo). O tempo anterior nunca é devolvido.
+  void retomar(Duration total, Duration decorridoAnterior) {
+    _total = total;
+    _inicio = _agora().subtract(
+      decorridoAnterior.isNegative ? Duration.zero : decorridoAnterior,
+    );
+    _stopwatch
+      ..reset()
+      ..start();
+  }
+
   void parar() {
     _stopwatch.stop();
   }

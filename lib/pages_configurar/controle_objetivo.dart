@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/duracao.dart';
 import '../core/relogio_sessao.dart';
+import '../core/sessao_salva.dart';
 import '../services/auth_service.dart';
 import '../services/progresso_service.dart';
 import './objetivo_conteudo.dart';
@@ -99,14 +100,17 @@ class ResumoSessao {
 /// apenas o histórico (usado como SUGESTÃO, nunca aplicado sozinho) é
 /// gravado no aparelho, separado por usuário.
 class ControleObjetivos extends ChangeNotifier {
-  ControleObjetivos._() : _relogio = RelogioSessao();
+  ControleObjetivos._()
+      : _relogio = RelogioSessao(),
+        _agora = DateTime.now;
 
   /// Para testes: relógios controlados.
   @visibleForTesting
   ControleObjetivos.paraTeste({
     DateTime Function()? agora,
     Duration Function()? monotonico,
-  }) : _relogio = RelogioSessao(agora: agora, monotonico: monotonico);
+  })  : _relogio = RelogioSessao(agora: agora, monotonico: monotonico),
+        _agora = agora ?? DateTime.now;
 
   static final ControleObjetivos instance = ControleObjetivos._();
 
@@ -114,12 +118,14 @@ class ControleObjetivos extends ChangeNotifier {
   static const _kCategoria = 'hist_categoria_id';
   static const _kDuracao = 'hist_duracao_s';
   static const _kTexto = 'hist_texto_ikai';
+  static const _kSessao = 'sessao_salva_v1';
 
   /// Etapas: 0 objetivo, 1 categoria, 2 duração, 3 Ik AI (opcional).
   static const int ultimaEtapa = 3;
   static const int limiteTextoIkAi = 300;
 
   final RelogioSessao _relogio;
+  final DateTime Function() _agora;
 
   // ---------- Escolhas do ciclo atual (sempre começam vazias) ----------
   int etapa = 0;
@@ -307,6 +313,18 @@ class ControleObjetivos extends ChangeNotifier {
     try {
       // A sessão começa JÁ. Gravar o histórico não atrasa nem pausa o relógio.
       _iniciar(s);
+      final agoraMs = _agora().millisecondsSinceEpoch;
+      _salva = SessaoSalva(
+        objetivoId: o.id,
+        categoriaId: c.id,
+        texto: textoIkAi.trim(),
+        permitirGemini: permitirGemini,
+        totalSegundos: s,
+        inicioMs: agoraMs,
+        vistoMs: agoraMs,
+      );
+      _ultimaGravacaoMs = agoraMs;
+      unawaited(_gravarSalva());
       unawaited(_salvarHistorico(o.id, c.id, s, textoIkAi.trim()));
     } finally {
       _confirmando = false;
@@ -336,14 +354,118 @@ class ControleObjetivos extends ChangeNotifier {
   Duration get duracaoTotal => _relogio.total;
   double get fracaoUsada => _relogio.fracaoUsada;
 
-  void _iniciar(int segundosTotais) {
+  void _iniciar(int segundosTotais, {Duration decorrido = Duration.zero}) {
     if (_estado != EstadoSessao.naoIniciada) return; // nunca 2 sessões
-    _relogio.iniciar(Duration(seconds: segundosTotais));
+    if (decorrido == Duration.zero) {
+      _relogio.iniciar(Duration(seconds: segundosTotais));
+    } else {
+      _relogio.retomar(Duration(seconds: segundosTotais), decorrido);
+    }
     restante.value = _relogio.restante;
     _estado = EstadoSessao.ativa;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => verificar());
     notifyListeners();
+  }
+
+  // ---------- Sessão gravada (vale mesmo fechando o app) ----------
+  SessaoSalva? _salva;
+  int _ultimaGravacaoMs = 0;
+
+  String get _chaveSessao => _chave(_kSessao);
+
+  Future<void> _gravarSalva() async {
+    final s = _salva;
+    if (s == null) return;
+    final chave = _chaveSessao; // a chave é da conta de agora, não da próxima
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(chave, s.toJson());
+    } catch (_) {
+      // Sem armazenamento a sessão continua valendo em memória.
+    }
+  }
+
+  Future<void> _apagarSalva() async {
+    final chave = _chaveSessao;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(chave);
+    } catch (_) {}
+  }
+
+  /// Chamado logo depois do login. Se havia uma sessão gravada para esta
+  /// conta, ela volta exatamente de onde estava: fechar o app, sair da conta
+  /// ou voltar a hora do celular não dá tempo novo.
+  Future<void> restaurarSessao() async {
+    if (_estado != EstadoSessao.naoIniciada) return;
+    SessaoSalva? s;
+    final chave = _chaveSessao;
+    try {
+      final p = await SharedPreferences.getInstance();
+      s = SessaoSalva.tentarLer(p.getString(chave));
+    } catch (_) {
+      return;
+    }
+    if (s == null) return;
+
+    final o = buscarObjetivo(s.objetivoId);
+    final c = o?.buscarCategoria(s.categoriaId);
+    if (o == null || c == null) {
+      await _apagarSalva();
+      return;
+    }
+
+    objetivo = o;
+    categoria = c;
+    textoIkAi = s.texto;
+    permitirGemini = s.permitirGemini;
+    definirDuracaoTotalInterno(s.totalSegundos);
+    _salva = s;
+
+    final total = Duration(seconds: s.totalSegundos);
+
+    if (s.encerrada) {
+      _relogio.retomar(total, Duration(seconds: s.usadoSegundos));
+      _relogio.parar();
+      _ultimoResumo = _montarResumo(
+        total: total,
+        usado: Duration(seconds: s.usadoSegundos),
+        peloUsuario: s.peloUsuario,
+      );
+      _estado = EstadoSessao.expirada;
+      restante.value = Duration.zero;
+      notifyListeners();
+      return;
+    }
+
+    final decorrido = s.decorridoEm(_agora().millisecondsSinceEpoch);
+    _iniciar(s.totalSegundos, decorrido: decorrido);
+    verificar(); // se já passou do fim, encerra agora
+  }
+
+  /// Só preenche horas/minutos/segundos (sem checar o estado).
+  void definirDuracaoTotalInterno(int totalSegundos) {
+    horas = totalSegundos ~/ 3600;
+    minutos = (totalSegundos % 3600) ~/ 60;
+    segundos = totalSegundos % 60;
+  }
+
+  ResumoSessao _montarResumo({
+    required Duration total,
+    required Duration usado,
+    required bool peloUsuario,
+  }) {
+    final usadoFinal = usado > total ? total : usado;
+    return ResumoSessao(
+      objetivoTitulo: objetivo?.titulo ?? '',
+      categoriaTitulo: categoria?.titulo ?? '',
+      textoIkAi: textoIkAi.trim(),
+      permitiuEnvioGemini: permitirGemini,
+      duracaoPlanejadaSegundos: total.inSeconds,
+      usadoSegundos: usadoFinal.inSeconds,
+      encerradaPeloUsuario: peloUsuario,
+    );
   }
 
   /// Recalcula o restante. Também é chamado ao voltar do segundo plano.
@@ -353,6 +475,12 @@ class ControleObjetivos extends ChangeNotifier {
       _encerrar(peloUsuario: false);
     } else {
       restante.value = _relogio.restante;
+      final agoraMs = _agora().millisecondsSinceEpoch;
+      if (_salva != null && agoraMs - _ultimaGravacaoMs >= 10000) {
+        _salva = _salva!.comVisto(agoraMs);
+        _ultimaGravacaoMs = agoraMs;
+        unawaited(_gravarSalva());
+      }
     }
   }
 
@@ -368,23 +496,38 @@ class ControleObjetivos extends ChangeNotifier {
     _relogio.parar();
 
     final usadoFinal = usado > total ? total : usado;
-    _ultimoResumo = ResumoSessao(
-      objetivoTitulo: objetivo?.titulo ?? '',
-      categoriaTitulo: categoria?.titulo ?? '',
-      textoIkAi: textoIkAi.trim(),
-      permitiuEnvioGemini: permitirGemini,
-      duracaoPlanejadaSegundos: total.inSeconds,
-      usadoSegundos: usadoFinal.inSeconds,
-      encerradaPeloUsuario: peloUsuario,
+    _ultimoResumo = _montarResumo(
+      total: total,
+      usado: usado,
+      peloUsuario: peloUsuario,
     );
     _estado = EstadoSessao.expirada; // estado terminal: não há volta
     restante.value = Duration.zero;
+    final salva = _salva;
+    if (salva != null) {
+      _salva = salva
+          .comVisto(_agora().millisecondsSinceEpoch)
+          .comoEncerrada(
+            usadoSegundos: usadoFinal.inSeconds,
+            peloUsuario: peloUsuario,
+          );
+      unawaited(_gravarSalva());
+    }
     unawaited(ProgressoService.instance.registrarSessao(usadoFinal.inSeconds));
     notifyListeners();
   }
 
-  /// Reinicia o controlador para permitir a criação de uma nova sessão.
+  /// O usuário começa uma NOVA sessão (botão da tela de bloqueio) ou a conta
+  /// é excluída: apaga também a sessão gravada.
   void reiniciarSessao() {
+    descartarSessaoEmMemoria();
+    unawaited(_apagarSalva());
+  }
+
+  /// Limpa só a memória (troca de conta). A sessão gravada permanece, para
+  /// que sair e entrar de novo não ganhe tempo.
+  void descartarSessaoEmMemoria() {
+    _salva = null;
     _timer?.cancel();
     _timer = null;
     _relogio.zerar();

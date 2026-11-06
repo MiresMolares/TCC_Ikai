@@ -1,6 +1,7 @@
 import '../pages_configurar/controle_objetivo.dart';
 import 'auth_service.dart';
 import 'biblioteca_service.dart';
+import 'ik_ai_service.dart';
 import 'progresso_service.dart';
 
 /// O que acontece quando alguém entra ou sai da conta.
@@ -12,20 +13,27 @@ class SessaoUsuario {
   static Future<void> aoEntrar() async {
     final u = AuthService.instance.usuarioAtual;
     if (u == null) return;
-    ControleObjetivos.instance.reiniciarSessao();
+    ControleObjetivos.instance.descartarSessaoEmMemoria();
     ControleObjetivos.instance.descartarHistoricoEmMemoria();
     await Future.wait([
       BibliotecaService.instance.carregarPara(u.email),
       ProgressoService.instance.carregarPara(u.email),
+      IkAiService.carregarPara(u.email),
     ]);
+    // Se esta conta tinha uma sessão em andamento (ou já vencida), ela volta
+    // do ponto em que estava. Fechar o app não dá tempo novo.
+    await ControleObjetivos.instance.restaurarSessao();
   }
 
-  /// Sair da conta também encerra a sessão (Pilar 1) e limpa a memória.
+  /// Sair da conta limpa a memória do aparelho. A sessão gravada continua
+  /// valendo (o tempo segue correndo), então sair e entrar não reinicia o
+  /// limite.
   static void aoSair() {
-    ControleObjetivos.instance.reiniciarSessao();
+    ControleObjetivos.instance.descartarSessaoEmMemoria();
     ControleObjetivos.instance.descartarHistoricoEmMemoria();
     BibliotecaService.instance.limpar();
     ProgressoService.instance.limpar();
+    IkAiService.limpar();
     AuthService.instance.sair();
   }
 
@@ -35,6 +43,7 @@ class SessaoUsuario {
     ControleObjetivos.instance.descartarHistoricoEmMemoria();
     BibliotecaService.instance.limpar();
     ProgressoService.instance.limpar();
+    IkAiService.apagarDaConta(); // lê o e-mail antes da conta sair
     AuthService.instance.excluirConta();
   }
 }

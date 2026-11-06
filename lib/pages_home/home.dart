@@ -5,8 +5,10 @@ import '../pages_configurar/controle_objetivo.dart';
 import '../pages_configurar/sessao_guard.dart';
 import '../services/artigos_repositorio.dart';
 import '../services/auth_service.dart';
+import '../services/config_service.dart';
 import '../widgets/artigo_card.dart';
 import '../widgets/estilo.dart';
+import '../widgets/seletor_nivel.dart';
 import 'botoes_home/notificacao.dart';
 import 'biblioteca.dart';
 import 'comunidade.dart';
@@ -113,10 +115,23 @@ class _InicioTabState extends State<InicioTab> {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ConfigService.instance,
+      builder: (context, _) => _construir(context),
+    );
+  }
+
+  Widget _construir(BuildContext context) {
     final nome = AuthService.instance.usuarioAtual?.primeiroNome ?? '';
+    final nivel = ConfigService.instance.nivelConteudo;
+    final semFiltro = ArtigosRepositorio.feedDaSessao(
+      _c.objetivo?.id,
+      _c.categoria?.id,
+    );
     final feed = ArtigosRepositorio.feedDaSessao(
       _c.objetivo?.id,
       _c.categoria?.id,
+      nivel: nivel,
     );
     final tags = ArtigosRepositorio.tagsDe(feed);
     final tagAtiva = (_tag != null && tags.contains(_tag)) ? _tag : null;
@@ -147,6 +162,10 @@ class _InicioTabState extends State<InicioTab> {
               : '${feed.length} conteúdos escolhidos para esta sessão.',
           style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
         ),
+        if (semFiltro.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const SeletorNivel(),
+        ],
         if (tags.isNotEmpty) ...[
           const SizedBox(height: 12),
           SizedBox(
@@ -176,7 +195,9 @@ class _InicioTabState extends State<InicioTab> {
           ),
         ],
         const SizedBox(height: 16),
-        if (feed.isEmpty)
+        if (feed.isEmpty && semFiltro.isNotEmpty)
+          _SemNesteNivel(nivel: nivel)
+        else if (feed.isEmpty)
           const _Aviso(
             'Ainda não há conteúdos nesta categoria. Eles chegam com o '
             'banco de dados.',
@@ -185,6 +206,34 @@ class _InicioTabState extends State<InicioTab> {
           ListaDeArtigos(artigos: List<Artigo>.of(visiveis)),
         if (feed.isNotEmpty) const _FimDoFeed(),
       ],
+    );
+  }
+}
+
+class _SemNesteNivel extends StatelessWidget {
+  final int nivel;
+
+  const _SemNesteNivel({required this.nivel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Column(
+        children: [
+          Text(
+            'Ainda não há conteúdo de nível ${Artigo.nomeDoNivel(nivel).toLowerCase()} '
+            'nesta categoria.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Cores.subtitulo),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => ConfigService.instance.definirNivelConteudo(0),
+            child: const Text('Ver todos os níveis'),
+          ),
+        ],
+      ),
     );
   }
 }

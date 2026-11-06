@@ -53,7 +53,7 @@ class ArtigoCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${artigo.autor}  ·  ${artigo.minutosLeitura} min'
+                          '${artigo.autor}  ·  ${artigo.minutosLeitura} min  ·  ${Artigo.nomeDoNivel(artigo.nivel)}'
                           '${lido ? '  ·  Lido' : ''}',
                           style: const TextStyle(
                             fontSize: 12,

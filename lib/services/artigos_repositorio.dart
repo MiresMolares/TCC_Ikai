@@ -30,9 +30,21 @@ class ArtigosRepositorio {
         .toList();
   }
 
+  /// Filtra por nível de dificuldade. 0 (ou valor inválido) devolve [base].
+  static List<Artigo> doNivel(List<Artigo> base, int nivel) {
+    if (nivel < Artigo.nivelMinimo || nivel > Artigo.nivelMaximo) return base;
+    return base.where((a) => a.nivel == nivel).toList();
+  }
+
   /// Feed finito da sessão: no máximo [conteudosPorSessao] artigos.
-  static List<Artigo> feedDaSessao(String? objetivoId, String? categoriaId) {
-    final lista = doModo(objetivoId, categoriaId);
+  ///
+  /// [nivel] 0 mostra todos; 1 a 3 mostra só aquele nível de dificuldade.
+  static List<Artigo> feedDaSessao(
+    String? objetivoId,
+    String? categoriaId, {
+    int nivel = 0,
+  }) {
+    final lista = doNivel(doModo(objetivoId, categoriaId), nivel);
     return lista.length <= conteudosPorSessao
         ? lista
         : lista.sublist(0, conteudosPorSessao);

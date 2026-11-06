@@ -11,6 +11,7 @@ import 'artigo.dart';
 ///     id: 'a031',                      // único; continue a numeração
 ///     objetivoId: 'ler',               // 'ver_conteudo' | 'ler' | 'estudar'
 ///     categoriaId: 'ler_romance',      // id de uma categoria do objetivo
+///     nivel: 1,                        // 1 iniciante | 2 intermediário | 3 avançado
 ///     titulo: 'Título do artigo',
 ///     autor: 'Nome do autor',
 ///     resumo: 'Uma ou duas frases para o cartão.',
@@ -36,6 +37,7 @@ const List<Artigo> artigosDados = [
     id: 'a001',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_cientifico',
+    nivel: 1,
     titulo: 'Por que o céu é azul',
     autor: 'Equipe Ikai',
     resumo:
@@ -60,6 +62,7 @@ const List<Artigo> artigosDados = [
     id: 'a002',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_cultura',
+    nivel: 1,
     titulo: 'Capoeira: luta, dança e resistência',
     autor: 'Equipe Ikai',
     resumo:
@@ -81,6 +84,7 @@ const List<Artigo> artigosDados = [
     id: 'a003',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_jogos',
+    nivel: 2,
     titulo: 'O que o xadrez ensina sobre decisões',
     autor: 'Equipe Ikai',
     resumo:
@@ -101,6 +105,7 @@ const List<Artigo> artigosDados = [
     id: 'a004',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_noticia',
+    nivel: 2,
     titulo: 'Três perguntas antes de compartilhar uma notícia',
     autor: 'Equipe Ikai',
     resumo:
@@ -122,6 +127,7 @@ const List<Artigo> artigosDados = [
     id: 'a005',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_esporte',
+    nivel: 1,
     titulo: 'A primeira Copa do Mundo',
     autor: 'Equipe Ikai',
     resumo:
@@ -141,6 +147,7 @@ const List<Artigo> artigosDados = [
     id: 'a006',
     objetivoId: 'ver_conteudo',
     categoriaId: 'ver_curiosidades',
+    nivel: 1,
     titulo: 'O mel que quase não estraga',
     autor: 'Equipe Ikai',
     resumo:
@@ -167,6 +174,7 @@ const List<Artigo> artigosDados = [
     id: 'a007',
     objetivoId: 'ler',
     categoriaId: 'ler_romance',
+    nivel: 2,
     titulo: 'Dom Casmurro e a dúvida que atravessa gerações',
     autor: 'Equipe Ikai',
     resumo:
@@ -187,6 +195,7 @@ const List<Artigo> artigosDados = [
     id: 'a008',
     objetivoId: 'ler',
     categoriaId: 'ler_fantasia',
+    nivel: 1,
     titulo: 'O que faz um mundo de fantasia parecer real',
     autor: 'Equipe Ikai',
     resumo:
@@ -207,6 +216,7 @@ const List<Artigo> artigosDados = [
     id: 'a009',
     objetivoId: 'ler',
     categoriaId: 'ler_suspense',
+    nivel: 1,
     titulo: 'Como o suspense prende o leitor',
     autor: 'Equipe Ikai',
     resumo:
@@ -227,6 +237,7 @@ const List<Artigo> artigosDados = [
     id: 'a010',
     objetivoId: 'ler',
     categoriaId: 'ler_fc',
+    nivel: 2,
     titulo: 'Frankenstein, a origem da ficção científica moderna',
     autor: 'Equipe Ikai',
     resumo:
@@ -247,6 +258,7 @@ const List<Artigo> artigosDados = [
     id: 'a011',
     objetivoId: 'ler',
     categoriaId: 'ler_horror',
+    nivel: 1,
     titulo: 'Por que gostamos de sentir medo lendo',
     autor: 'Equipe Ikai',
     resumo:
@@ -267,6 +279,7 @@ const List<Artigo> artigosDados = [
     id: 'a012',
     objetivoId: 'ler',
     categoriaId: 'ler_terror',
+    nivel: 2,
     titulo: 'Terror e horror: qual é a diferença',
     autor: 'Equipe Ikai',
     resumo:
@@ -288,6 +301,7 @@ const List<Artigo> artigosDados = [
     id: 'a013',
     objetivoId: 'ler',
     categoriaId: 'ler_religioso',
+    nivel: 2,
     titulo: 'Textos sagrados: um olhar de leitor',
     autor: 'Equipe Ikai',
     resumo:
@@ -309,6 +323,7 @@ const List<Artigo> artigosDados = [
     id: 'a014',
     objetivoId: 'ler',
     categoriaId: 'ler_distopia',
+    nivel: 3,
     titulo: '1984: a vigilância como tema',
     autor: 'Equipe Ikai',
     resumo:
@@ -330,6 +345,7 @@ const List<Artigo> artigosDados = [
     id: 'a015',
     objetivoId: 'ler',
     categoriaId: 'ler_aventura',
+    nivel: 1,
     titulo: 'A Ilha do Tesouro e o imaginário dos piratas',
     autor: 'Equipe Ikai',
     resumo:
@@ -350,6 +366,7 @@ const List<Artigo> artigosDados = [
     id: 'a016',
     objetivoId: 'ler',
     categoriaId: 'ler_dp',
+    nivel: 1,
     titulo: 'Hábitos pequenos, mudança grande',
     autor: 'Equipe Ikai',
     resumo:
@@ -370,6 +387,7 @@ const List<Artigo> artigosDados = [
     id: 'a017',
     objetivoId: 'ler',
     categoriaId: 'ler_tecnico',
+    nivel: 2,
     titulo: 'Como ler um texto técnico sem se perder',
     autor: 'Equipe Ikai',
     resumo:
@@ -390,6 +408,7 @@ const List<Artigo> artigosDados = [
     id: 'a018',
     objetivoId: 'ler',
     categoriaId: 'ler_biografia',
+    nivel: 2,
     titulo: 'Quarto de Despejo e a voz de quem escreve a própria vida',
     autor: 'Equipe Ikai',
     resumo:
@@ -415,6 +434,7 @@ const List<Artigo> artigosDados = [
     id: 'a019',
     objetivoId: 'estudar',
     categoriaId: 'estudar_matematica',
+    nivel: 1,
     titulo: 'Problemas de matemática: leia duas vezes, resolva uma',
     autor: 'Equipe Ikai',
     resumo:
@@ -436,6 +456,7 @@ const List<Artigo> artigosDados = [
     id: 'a020',
     objetivoId: 'estudar',
     categoriaId: 'estudar_lp',
+    nivel: 1,
     titulo: 'Crase sem medo: a regra do vou a, volto da',
     autor: 'Equipe Ikai',
     resumo: 'Um truque clássico para decidir quando usar o acento grave.',
@@ -454,6 +475,7 @@ const List<Artigo> artigosDados = [
     id: 'a021',
     objetivoId: 'estudar',
     categoriaId: 'estudar_ingles',
+    nivel: 2,
     titulo: 'False friends: palavras que enganam',
     autor: 'Equipe Ikai',
     resumo:
@@ -475,6 +497,7 @@ const List<Artigo> artigosDados = [
     id: 'a022',
     objetivoId: 'estudar',
     categoriaId: 'estudar_artes',
+    nivel: 1,
     titulo: 'Cores quentes e cores frias',
     autor: 'Equipe Ikai',
     resumo: 'Como a temperatura das cores muda a sensação de uma imagem.',
@@ -493,6 +516,7 @@ const List<Artigo> artigosDados = [
     id: 'a023',
     objetivoId: 'estudar',
     categoriaId: 'estudar_historia',
+    nivel: 2,
     titulo: 'Revolução Francesa: o que mudou em 1789',
     autor: 'Equipe Ikai',
     resumo: 'Três ideias para entender o início de um processo que mudou o mundo.',
@@ -512,6 +536,7 @@ const List<Artigo> artigosDados = [
     id: 'a024',
     objetivoId: 'estudar',
     categoriaId: 'estudar_geografia',
+    nivel: 2,
     titulo: 'Latitude e longitude: como localizar qualquer ponto',
     autor: 'Equipe Ikai',
     resumo: 'As duas medidas que formam o endereço de qualquer lugar do planeta.',
@@ -530,6 +555,7 @@ const List<Artigo> artigosDados = [
     id: 'a025',
     objetivoId: 'estudar',
     categoriaId: 'estudar_filosofia',
+    nivel: 2,
     titulo: 'Sócrates e a arte de perguntar',
     autor: 'Equipe Ikai',
     resumo:
@@ -550,6 +576,7 @@ const List<Artigo> artigosDados = [
     id: 'a026',
     objetivoId: 'estudar',
     categoriaId: 'estudar_sociologia',
+    nivel: 3,
     titulo: 'Fato social, segundo Durkheim',
     autor: 'Equipe Ikai',
     resumo: 'O conceito que ajudou a transformar a sociologia em ciência.',
@@ -569,6 +596,7 @@ const List<Artigo> artigosDados = [
     id: 'a027',
     objetivoId: 'estudar',
     categoriaId: 'estudar_ef',
+    nivel: 1,
     titulo: 'Aquecimento: por que cinco minutos importam',
     autor: 'Equipe Ikai',
     resumo: 'O que acontece no corpo quando você se prepara antes de se exercitar.',
@@ -588,6 +616,7 @@ const List<Artigo> artigosDados = [
     id: 'a028',
     objetivoId: 'estudar',
     categoriaId: 'estudar_biologia',
+    nivel: 1,
     titulo: 'Fotossíntese em poucas linhas',
     autor: 'Equipe Ikai',
     resumo: 'Como as plantas transformam luz em alimento e liberam oxigênio.',
@@ -606,6 +635,7 @@ const List<Artigo> artigosDados = [
     id: 'a029',
     objetivoId: 'estudar',
     categoriaId: 'estudar_fisica',
+    nivel: 2,
     titulo: 'Inércia: a primeira lei de Newton',
     autor: 'Equipe Ikai',
     resumo: 'Por que você é jogado para frente quando o carro freia.',
@@ -625,6 +655,7 @@ const List<Artigo> artigosDados = [
     id: 'a030',
     objetivoId: 'estudar',
     categoriaId: 'estudar_quimica',
+    nivel: 2,
     titulo: 'Tabela periódica: como ler',
     autor: 'Equipe Ikai',
     resumo: 'Linhas, colunas e o que a posição de um elemento revela.',

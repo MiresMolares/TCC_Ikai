@@ -283,7 +283,8 @@ class _TelaBloqueioState extends State<TelaBloqueio> {
               Text(
                 viaGemini
                     ? 'Geradas pelo Gemini a partir do que você escreveu.'
-                    : 'Geradas no seu aparelho, sem enviar nada.',
+                    : 'Geradas no seu aparelho, sem enviar nada.'
+                        '${kDebugMode && snap.data?.motivoLocal != null ? '\n[debug] ${snap.data!.motivoLocal}' : ''}',
                 style: const TextStyle(fontSize: 11, color: Cores.subtitulo),
               ),
             ],

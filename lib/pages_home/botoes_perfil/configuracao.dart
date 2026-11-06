@@ -5,6 +5,7 @@ import '../../pages_login/login.dart';
 import '../../services/auth_service.dart';
 import '../../services/biblioteca_service.dart';
 import '../../services/config_service.dart';
+import '../../services/ik_ai_service.dart';
 import '../../services/progresso_service.dart';
 import '../../services/sessao_usuario.dart';
 import '../../widgets/estilo.dart';
@@ -24,7 +25,8 @@ class ConfiguracoesPage extends StatelessWidget {
     final json = '{"conta":{"nome":${_aspas(u?.nome ?? '')},'
         '"email":${_aspas(u?.email ?? '')}},'
         '"biblioteca":${BibliotecaService.instance.exportarJson()},'
-        '"progresso":${ProgressoService.instance.exportarJson()}}';
+        '"progresso":${ProgressoService.instance.exportarJson()},'
+        '"ik_ai":${IkAiService.exportarJson()}}';
     await Clipboard.setData(ClipboardData(text: json));
     if (context.mounted) {
       mostrarAviso(context, 'Seus dados foram copiados. Cole onde quiser.');

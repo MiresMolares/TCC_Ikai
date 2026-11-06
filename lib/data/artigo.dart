@@ -18,6 +18,10 @@ class Artigo {
   /// Uma ou duas frases que aparecem no cartão.
   final String resumo;
 
+  /// Nível de dificuldade: 1 iniciante, 2 intermediário, 3 avançado.
+  /// Quem escolhe o nível que quer ver é o usuário, nunca o app.
+  final int nivel;
+
   /// Assuntos curtos, em minúsculas. Usados na busca e nos filtros.
   final List<String> tags;
 
@@ -33,7 +37,25 @@ class Artigo {
     required this.resumo,
     required this.tags,
     required this.paragrafos,
+    this.nivel = 1,
   });
+
+  static const int nivelMinimo = 1;
+  static const int nivelMaximo = 3;
+
+  /// 0 não é um nível: significa "todos" nos filtros.
+  static String nomeDoNivel(int nivel) {
+    switch (nivel) {
+      case 1:
+        return 'Iniciante';
+      case 2:
+        return 'Intermediário';
+      case 3:
+        return 'Avançado';
+      default:
+        return 'Todos';
+    }
+  }
 
   /// Tempo de leitura estimado (180 palavras por minuto), mínimo 1.
   int get minutosLeitura {
