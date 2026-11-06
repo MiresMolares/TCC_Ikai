@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../services/auth_service.dart';
+import '../widgets/estilo.dart';
+import 'widgets_login.dart';
+
 class ResgatarSenhaPage extends StatefulWidget {
   const ResgatarSenhaPage({super.key});
 
@@ -8,137 +12,83 @@ class ResgatarSenhaPage extends StatefulWidget {
   State<ResgatarSenhaPage> createState() => _ResgatarSenhaPageState();
 }
 
-class _ResgatarSenhaPageState extends State<ResgatarSenhaPage>{
-
+class _ResgatarSenhaPageState extends State<ResgatarSenhaPage> {
   final TextEditingController emailController = TextEditingController();
 
-  void mostrarMensagem(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-        backgroundColor: Colors.black,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+  @override
+  void dispose() {
+    emailController.dispose();
+    super.dispose();
   }
 
- void verificar() {
-  if (
-      emailController.text.trim().isEmpty ) {
-    mostrarMensagem('Preencha o campo corretamente');
-    return;
-      } else {
-//    entrar();
+  void enviar() {
+    final erro = AuthService.instance.recuperarSenha(emailController.text);
+    if (erro != null) {
+      mostrarAviso(context, erro);
+      return;
+    }
+
+    // A resposta é a mesma exista o e-mail ou não, para não revelar quais
+    // e-mails têm conta. O envio real depende do servidor (back-end).
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Se este e-mail estiver cadastrado, você receberá as '
+            'instruções para criar uma nova senha.',
+          ),
+        ),
+      );
   }
-}
-  
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Recover password"),
-        backgroundColor: const Color.fromARGB(255, 237, 241, 243),
+        title: const Text('Recuperar senha'),
+        backgroundColor: fundoLogin,
       ),
-      backgroundColor: const Color.fromARGB(255, 237, 241, 243),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(24),
+      backgroundColor: fundoLogin,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-
-            const SizedBox(height: 15,),
-
-            Image.asset(
-              'assets/Ikai.png',
-              height: 100,
-              fit: BoxFit.contain,
-              ),
-
-              const SizedBox(height: 50,),
-
+              const SizedBox(height: 15),
+              const LogoIkai(),
+              const SizedBox(height: 50),
               Text(
-                'Recover Password',
-                textAlign: TextAlign.left,
-                style: GoogleFonts.inter( 
+                'Recuperar senha',
+                style: GoogleFonts.inter(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              
-              const SizedBox(height: 20,),
-
+              const SizedBox(height: 20),
               Text(
-                'Enter the recovery email address.',
-                textAlign: TextAlign.left,
-                style: GoogleFonts.inter(
-                  fontSize: 18,
-                ),
+                'Informe o e-mail da sua conta.',
+                style: GoogleFonts.inter(fontSize: 18),
               ),
-
-              const SizedBox(height: 30,),
-
-              Center(
-                child:  SizedBox(
-                  width: 1200, 
-                  height: 50,    
-                child:  TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    label: Text(
-                    'E-mail',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  hint: Text (
-                    'Exemplo@gmail.com',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                    ),
-                  ),         
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)
-                  ), 
-                ),
+              const SizedBox(height: 30),
+              CampoLogin(
+                controller: emailController,
+                rotulo: 'E-mail',
+                dica: 'exemplo@gmail.com',
+                icone: Icons.email,
+                teclado: TextInputType.emailAddress,
+                acao: TextInputAction.done,
+                aoEnviar: enviar,
               ),
-            ),
-          ),
-
-          const SizedBox(height: 45,),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: verificar,
-                    style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCB5A34), // Cor terracota sólida
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shadowColor: Colors.black38,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(
-                        color: Color(0xFF4B86ED), // Borda azul
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                child: Text(
-                  'To Send',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ]
+              const SizedBox(height: 45),
+              BotaoPrincipal(texto: 'Enviar', onPressed: enviar),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
   }
+}

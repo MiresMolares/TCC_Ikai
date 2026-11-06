@@ -33,32 +33,32 @@ const List<Categoria> _materias = [
     titulo: 'Geografia',
     icone: Icons.public_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'estudar_filosofia',
     titulo: 'Filosofia',
     icone: Icons.psychology_outlined,
   ),
-    Categoria(
-    id: 'estudar_sociolofia',
+  Categoria(
+    id: 'estudar_sociologia',
     titulo: 'Sociologia',
     icone: Icons.groups_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'estudar_ef',
     titulo: 'Educação Física',
     icone: Icons.fitness_center_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'estudar_biologia',
     titulo: 'Biologia',
     icone: Icons.eco_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'estudar_fisica',
     titulo: 'Física',
     icone: Icons.bolt_outlined,
   ),
-    Categoria(
+  Categoria(
     id: 'estudar_quimica',
     titulo: 'Química',
     icone: Icons.science_outlined,
@@ -70,6 +70,4 @@ final Objetivo objetivoEstudo = Objetivo(
   titulo: 'Estudar',
   icone: Icons.school_outlined,
   categorias: _materias,
-  construirTela: (props) =>
-      ListaCategorias(categorias: _materias, props: props),
 );

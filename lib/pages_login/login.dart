@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'resgatar_senha.dart';
-import 'cadastro.dart';
-import '../pages_configurar/tela_temporaria1.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../pages_configurar/confirmar_entrada.dart';
+import '../services/auth_service.dart';
+import '../services/sessao_usuario.dart';
+import '../widgets/estilo.dart';
+import 'cadastro.dart';
+import 'resgatar_senha.dart';
+import 'widgets_login.dart';
 
-class LoginPage extends StatefulWidget{
+class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
@@ -13,372 +18,174 @@ class LoginPage extends StatefulWidget{
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const String _kEmailLembrado = 'login_email_lembrado';
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController senhaController = TextEditingController();
 
-  bool _checked = false;
+  bool _lembrar = false;
   bool esconderSenha = true;
-
-  void mostrarMensagem(String mensagem) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-        backgroundColor: Colors.black,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
- void verificar() {
-  if (
-      emailController.text.trim().isEmpty ||
-      senhaController.text.trim().isEmpty ) {
-    mostrarMensagem('Preencha todos os campos corretamente');
-    return;
-      } else {
-        entrar();
-  }
-}
-  
-  void abrirCadastro(){
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CadastroPage(),
-      ),
-    );
-  }
-
-  void abrirEsqueceuASenha(){
-    Navigator.push(context,
-     MaterialPageRoute(
-      builder: (context) => const ResgatarSenhaPage(),
-      ),
-    );
-  }
-
-  void entrar(){
-    Navigator.push(context,
-    MaterialPageRoute(
-      builder: (context) => const InicioPage1()
-      ),
-    );
-  }
-
-
+  bool _entrando = false;
 
   @override
-  Widget build(BuildContext context){
+  void initState() {
+    super.initState();
+    _carregarEmailLembrado();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    senhaController.dispose();
+    super.dispose();
+  }
+
+  /// "Lembrar de mim" guarda só o e-mail, nunca a senha.
+  Future<void> _carregarEmailLembrado() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final email = p.getString(_kEmailLembrado);
+      if (!mounted || email == null || email.isEmpty) return;
+      setState(() {
+        emailController.text = email;
+        _lembrar = true;
+      });
+    } catch (_) {
+      // Sem armazenamento, o campo só começa vazio.
+    }
+  }
+
+  Future<void> _guardarEmailLembrado() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (_lembrar) {
+        await p.setString(_kEmailLembrado, emailController.text.trim());
+      } else {
+        await p.remove(_kEmailLembrado);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> entrar() async {
+    if (_entrando) return;
+    final erro = AuthService.instance.entrar(
+      emailController.text,
+      senhaController.text,
+    );
+    if (erro != null) {
+      mostrarAviso(context, erro);
+      return;
+    }
+
+    setState(() => _entrando = true);
+    await _guardarEmailLembrado();
+    await SessaoUsuario.aoEntrar();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const ConfirmarEntradaPage()),
+    );
+  }
+
+  Future<void> abrirCadastro() async {
+    final email = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const CadastroPage()),
+    );
+    if (email != null && mounted) {
+      setState(() => emailController.text = email);
+    }
+  }
+
+  void abrirEsqueceuASenha() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ResgatarSenhaPage()),
+    );
+  }
+
+  void _loginSocial() => mostrarAviso(context, avisoLoginSocial);
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 237, 241, 243),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(24),
+      backgroundColor: fundoLogin,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-           const SizedBox(height: 25,),
-
-            Image.asset(
-              'assets/Ikai.png',
-              height: 100,
-              fit: BoxFit.contain,
-              ),
-
-              const SizedBox(height: 35,),
-
+              const SizedBox(height: 25),
+              const LogoIkai(),
+              const SizedBox(height: 35),
               Text(
-                'Sing in to your Account',
-                textAlign: TextAlign.left,
-                style: GoogleFonts.inter( 
-                  fontSize: 35,
+                'Entre na sua conta',
+                style: GoogleFonts.inter(
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              
-              const SizedBox(height: 20,),
-
+              const SizedBox(height: 20),
               Text(
-                'Enter your email and password to login',
-                textAlign: TextAlign.left,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                ),
+                'Informe seu e-mail e sua senha para entrar',
+                style: GoogleFonts.inter(fontSize: 14),
               ),
-
-              const SizedBox(height: 30,),
-
-              Center(
-                child:  SizedBox(
-                  width: 1200, 
-                  height: 50,    
-                child:  TextField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    label: Text(
-                    'E-mail',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  hint: Text (
-                    'Exemplo@gmail.com',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.bold,
-                    ),
-                  ),         
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)
-                  ), 
-                ),
+              const SizedBox(height: 30),
+              CampoLogin(
+                controller: emailController,
+                rotulo: 'E-mail',
+                dica: 'exemplo@gmail.com',
+                icone: Icons.email,
+                teclado: TextInputType.emailAddress,
+                acao: TextInputAction.next,
               ),
-            ),
-          ),
-
-              const SizedBox(height: 15,),
-              
-              Center(
-                child:  SizedBox(
-                  width: 1200, 
-                  height: 50,   
-                child:  TextField(
+              const SizedBox(height: 15),
+              CampoLogin(
                 controller: senhaController,
-                obscureText: esconderSenha,
-                decoration:  InputDecoration(
-                  label: Text(
-                    'Password',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  ),
-                  hint: Text(
-                    '',
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  prefixIcon: Icon(Icons.lock),    
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)
-                  ),             
-                  suffixIcon: IconButton(
-                    onPressed: (){
-                      setState(() {
-                        esconderSenha = !esconderSenha;
-                      });
-                    }, 
-                    icon: Icon(
-                      esconderSenha 
-                      ? Icons.visibility
-                      : Icons.visibility_off
-                    ),
-                  )
-                ),
+                rotulo: 'Senha',
+                icone: Icons.lock,
+                senha: true,
+                esconder: esconderSenha,
+                aoAlternarVisibilidade: () =>
+                    setState(() => esconderSenha = !esconderSenha),
+                acao: TextInputAction.done,
+                aoEnviar: entrar,
               ),
-            ),
-          ),
-
-              const SizedBox(height: 25,),
-
+              const SizedBox(height: 15),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _checked,
-                        onChanged: (bool? value) {
-                          setState(() {
-                            _checked = value ?? false;
-                          });
-                        },
-                      ),
-                      Text(
-                        "Remember me",
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,),
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Checkbox(
+                          value: _lembrar,
+                          onChanged: (v) =>
+                              setState(() => _lembrar = v ?? false),
+                        ),
+                        Flexible(
+                          child: Text(
+                            'Lembrar de mim',
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
-                    ),
-
-                TextButton(
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  onPressed: abrirEsqueceuASenha,
-                 child: Text( 
-                  "Forgot your password?",
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue
-                    
-                  ),
-                )
-              ),
-            ],
-          ),
-
-              const SizedBox(height: 25,),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: verificar,
-                    style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCB5A34), // Cor terracota sólida
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shadowColor: Colors.black38,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(
-                        color: Color(0xFF4B86ED), // Borda azul
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                child: Text(
-                  'Log In',
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-
-              const SizedBox(height: 10,),
-
-              SizedBox(
-                width: double.infinity, // Ou um valor fixo, ex: 300
-                  child: Row(
-                    children: [
-                      Expanded(child: Divider(
-                        color: Colors.white,
-                        thickness: 1,
-                      )),
-                      Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('Or'),
-                    ),
-                    Expanded(child: Divider(
-                      color: Colors.white,
-                      thickness: 1,
-                    )),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 10,),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: entrar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      elevation: 4,
-                      shadowColor: Colors.black38,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(
-                          color: Color.fromARGB(255, 238, 210, 29), // Borda amarela
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/logo_google.png',
-                            height: 25,
-                          
-                          ),
-                        const SizedBox(width: 12),
-                        Text(
-                        'Continue with Google',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-
-            const SizedBox(height: 10,),
-
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: entrar,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      elevation: 4,
-                      shadowColor: Colors.black38,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(
-                          color: Color.fromARGB(255, 238, 210, 29), // Borda amarela
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/logo_facebook.png',
-                            height: 25,
-                          
-                          ),
-                        const SizedBox(width: 12),
-                        Text(
-                        'Continue with Facebook',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          
-          const SizedBox(height: 60,),
-          
-               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Dont have an account?',
-                    textAlign: TextAlign.left,
-                    style: GoogleFonts.inter(
-                    fontSize: 14,
                     ),
                   ),
                   TextButton(
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: abrirCadastro,
-                      child: Text(
-                      '  Sign Up',
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: abrirEsqueceuASenha,
+                    child: Text(
+                      'Esqueceu a senha?',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue,
@@ -386,10 +193,55 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ],
-              )
-            ]
+              ),
+              const SizedBox(height: 20),
+              BotaoPrincipal(
+                texto: 'Entrar',
+                onPressed: _entrando ? null : entrar,
+              ),
+              const SizedBox(height: 10),
+              const DivisorOu(),
+              const SizedBox(height: 10),
+              BotaoSocial(
+                texto: 'Continuar com Google',
+                imagem: 'assets/logo_google.png',
+                onPressed: _loginSocial,
+              ),
+              const SizedBox(height: 10),
+              BotaoSocial(
+                texto: 'Continuar com Facebook',
+                imagem: 'assets/logo_facebook.png',
+                onPressed: _loginSocial,
+              ),
+              const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Não tem uma conta?',
+                    style: GoogleFonts.inter(fontSize: 14),
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.only(left: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: abrirCadastro,
+                    child: Text(
+                      'Cadastre-se',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
   }
+}
