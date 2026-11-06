@@ -8,6 +8,7 @@ import '../core/duracao.dart';
 import '../core/relogio_sessao.dart';
 import '../core/sessao_salva.dart';
 import '../services/auth_service.dart';
+import '../services/config_service.dart';
 import '../services/progresso_service.dart';
 import './objetivo_conteudo.dart';
 import './objetivo_estudo.dart';
@@ -102,15 +103,18 @@ class ResumoSessao {
 class ControleObjetivos extends ChangeNotifier {
   ControleObjetivos._()
       : _relogio = RelogioSessao(),
-        _agora = DateTime.now;
+        _agora = DateTime.now,
+        _pausaMin = (() => ConfigService.instance.pausaMinutos);
 
   /// Para testes: relógios controlados.
   @visibleForTesting
   ControleObjetivos.paraTeste({
     DateTime Function()? agora,
     Duration Function()? monotonico,
+    int Function()? pausaMinutos,
   })  : _relogio = RelogioSessao(agora: agora, monotonico: monotonico),
-        _agora = agora ?? DateTime.now;
+        _agora = agora ?? DateTime.now,
+        _pausaMin = pausaMinutos ?? (() => ConfigService.pausaPadrao);
 
   static final ControleObjetivos instance = ControleObjetivos._();
 
@@ -126,6 +130,7 @@ class ControleObjetivos extends ChangeNotifier {
 
   final RelogioSessao _relogio;
   final DateTime Function() _agora;
+  final int Function() _pausaMin;
 
   // ---------- Escolhas do ciclo atual (sempre começam vazias) ----------
   int etapa = 0;
@@ -435,6 +440,7 @@ class ControleObjetivos extends ChangeNotifier {
       );
       _estado = EstadoSessao.expirada;
       restante.value = Duration.zero;
+      atualizarPausa();
       notifyListeners();
       return;
     }
@@ -505,16 +511,58 @@ class ControleObjetivos extends ChangeNotifier {
     restante.value = Duration.zero;
     final salva = _salva;
     if (salva != null) {
-      _salva = salva
-          .comVisto(_agora().millisecondsSinceEpoch)
-          .comoEncerrada(
+      final agoraMs = _agora().millisecondsSinceEpoch;
+      // A pausa conta a partir do FIM da sessão. Se o app ficou fechado e o
+      // tempo já venceu, esse intervalo longe da tela conta como pausa.
+      final fimNatural = salva.inicioMs + salva.totalSegundos * 1000;
+      final fimMs = (peloUsuario || fimNatural > agoraMs) ? agoraMs : fimNatural;
+      _salva = salva.comVisto(agoraMs).comoEncerrada(
             usadoSegundos: usadoFinal.inSeconds,
             peloUsuario: peloUsuario,
+            pausaAteMs: fimMs + _pausaMin() * 60000,
           );
       unawaited(_gravarSalva());
+      _ultimaGravacaoMs = agoraMs;
     }
+    atualizarPausa();
     unawaited(ProgressoService.instance.registrarSessao(usadoFinal.inSeconds));
     notifyListeners();
+  }
+
+  // ---------- Pausa obrigatória entre sessões ----------
+
+  /// Quanto falta da pausa. Só tem valor depois que a sessão acaba.
+  final ValueNotifier<Duration> pausaRestante = ValueNotifier(Duration.zero);
+
+  bool get emPausa => pausaRestante.value > Duration.zero;
+
+  /// Recalcula a pausa (a tela de bloqueio chama a cada segundo). Usa o mesmo
+  /// cuidado do tempo da sessão: voltar a hora do celular não encurta a pausa.
+  void atualizarPausa() {
+    final s = _salva;
+    if (_estado != EstadoSessao.expirada || s == null) {
+      pausaRestante.value = Duration.zero;
+      return;
+    }
+    final agoraMs = _agora().millisecondsSinceEpoch;
+    final r = s.pausaRestanteEm(agoraMs);
+    pausaRestante.value = r;
+    if (r > Duration.zero && agoraMs - _ultimaGravacaoMs >= 10000) {
+      _salva = s.comVisto(agoraMs);
+      _ultimaGravacaoMs = agoraMs;
+      unawaited(_gravarSalva());
+    }
+  }
+
+  /// Única porta para a próxima sessão: só abre depois da pausa.
+  /// Devolve false se ainda falta pausa.
+  bool iniciarNovaSessao() {
+    if (_estado == EstadoSessao.expirada) {
+      atualizarPausa();
+      if (emPausa) return false;
+    }
+    reiniciarSessao();
+    return true;
   }
 
   /// O usuário começa uma NOVA sessão (botão da tela de bloqueio) ou a conta
@@ -543,6 +591,7 @@ class ControleObjetivos extends ChangeNotifier {
     textoIkAi = '';
     permitirGemini = false;
     restante.value = Duration.zero;
+    pausaRestante.value = Duration.zero;
     notifyListeners();
   }
 }

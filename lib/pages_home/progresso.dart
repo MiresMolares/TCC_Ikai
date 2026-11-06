@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/biblioteca_service.dart';
+import '../services/compromisso_service.dart';
 import '../services/progresso_service.dart';
 import '../widgets/estilo.dart';
 
@@ -21,6 +22,7 @@ class ProgressoPage extends StatelessWidget {
       listenable: Listenable.merge([
         ProgressoService.instance,
         BibliotecaService.instance,
+        CompromissoService.instance,
       ]),
       builder: (context, _) {
         final p = ProgressoService.instance;
@@ -129,6 +131,8 @@ class ProgressoPage extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 14),
+            const _CombinadosIkAi(),
+            const SizedBox(height: 14),
             const Text(
               'Conquistas',
               style: TextStyle(
@@ -192,6 +196,56 @@ class ProgressoPage extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// O que a pessoa combinou com a Ik AI e como foi. Só ela vê, e só compara
+/// com ela mesma.
+class _CombinadosIkAi extends StatelessWidget {
+  const _CombinadosIkAi();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = CompromissoService.instance;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Cores.borda),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Combinados com a Ik AI',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Cores.titulo,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            s.todos.isEmpty
+                ? 'Quando você escolher uma ideia no chat da Ik AI, o '
+                    'combinado aparece aqui.'
+                : '${s.feitos} feitos, ${s.parciais} em parte, '
+                    '${s.naoFeitos} não consegui.',
+            style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
+          ),
+          for (final c in s.todos.take(3))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '${c.titulo} (${c.quando}): '
+                '${c.resposta == null ? 'aguardando' : nomeDaResposta(c.resposta!).toLowerCase()}',
+                style: const TextStyle(fontSize: 12, color: Cores.titulo),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

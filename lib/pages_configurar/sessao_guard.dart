@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:ui' show FontFeature;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
-import '../services/gemini_service.dart';
+import '../services/chat_fabrica.dart';
+import '../services/chat_ik_ai.dart';
 import '../widgets/estilo.dart';
+import '../widgets/ik_ai_chat_view.dart';
 import 'controle_objetivo.dart';
 
 /// Fica ACIMA do Navigator (ver MaterialApp.builder em main.dart).
@@ -82,8 +84,15 @@ class TempoRestante extends StatelessWidget {
   }
 }
 
-/// Tela exibida quando a sessão acaba. A Ik AI sugere como redirecionar a
-/// energia, usando só o que o usuário escreveu na etapa "Ik AI".
+/// Tela exibida quando a sessão acaba: a pessoa é levada à conversa com a
+/// Ik AI, que oferece várias opções reais do que fazer longe da tela e
+/// aceita o que ela disser (por exemplo, "não estou com meu livro").
+///
+/// A pausa entre sessões é obrigatória: o botão de nova sessão só abre
+/// quando a contagem chega a zero.
+///
+/// Esta tela fica ACIMA do Navigator, por isso tem o próprio Overlay (o campo
+/// de texto precisa de um) e não abre diálogos nem menus.
 class TelaBloqueio extends StatefulWidget {
   const TelaBloqueio({super.key});
 
@@ -92,26 +101,33 @@ class TelaBloqueio extends StatefulWidget {
 }
 
 class _TelaBloqueioState extends State<TelaBloqueio> {
-  Future<SugestoesIkAi>? _sugestoes;
+  late final ChatIkAi _chat;
+  Timer? _timer;
   ResumoSessao? _resumo;
 
   @override
   void initState() {
     super.initState();
-    _resumo = ControleObjetivos.instance.ultimoResumo;
+    final c = ControleObjetivos.instance;
+    _resumo = c.ultimoResumo;
     final r = _resumo;
-    if (r != null) {
-      // Uma única chamada por bloqueio (o Future é guardado no estado).
-      _sugestoes = GeminiService.padrao.gerarSugestoes(
-        ContextoSessao(
-          objetivoTitulo: r.objetivoTitulo,
-          categoriaTitulo: r.categoriaTitulo,
-          textoDeclarado: r.textoIkAi,
-          duracaoMinutos: (r.usadoSegundos / 60).round(),
-          permitiuEnvio: r.permitiuEnvioGemini,
-        ),
-      );
-    }
+    _chat = novoChatIkAi(
+      ocasiao: 'fim',
+      resumo: r,
+      minutosUsados: r == null ? 0 : (r.usadoSegundos / 60).round(),
+    );
+    c.atualizarPausa();
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => c.atualizarPausa(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _chat.dispose();
+    super.dispose();
   }
 
   @override
@@ -121,69 +137,18 @@ class _TelaBloqueioState extends State<TelaBloqueio> {
 
     return PopScope(
       canPop: false,
-      child: Scaffold(
-        backgroundColor: Cores.fundoEtapas,
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+      child: Overlay.wrap(
+        child: Scaffold(
+          backgroundColor: Cores.fundoEtapas,
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.hourglass_bottom_rounded,
-                      size: 56,
-                      color: Cores.laranja,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      peloUsuario ? 'Sessão encerrada' : 'Seu tempo acabou!',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Cores.tituloVerde,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      r == null
-                          ? 'Bom descanso da tela.'
-                          : 'Você usou ${formatarDuracao(r.usadoSegundos)} '
-                              'em ${r.categoriaTitulo}. '
-                              'Agora é hora de levar essa energia para fora '
-                              'do aplicativo.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Cores.subtitulo,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    if (_sugestoes != null) _blocoSugestoes(),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: ControleObjetivos.instance.reiniciarSessao,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Cores.laranja,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          'Iniciar nova sessão',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _cabecalho(r, peloUsuario),
+                    Expanded(child: IkAiChatView(chat: _chat)),
+                    _rodape(),
                   ],
                 ),
               ),
@@ -194,100 +159,98 @@ class _TelaBloqueioState extends State<TelaBloqueio> {
     );
   }
 
-  Widget _blocoSugestoes() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E5DF)),
+  Widget _cabecalho(ResumoSessao? r, bool peloUsuario) {
+    final detalhe = r == null
+        ? 'Bom descanso da tela.'
+        : 'Você usou ${formatarDuracao(r.usadoSegundos)} em '
+            '${r.categoriaTitulo}.';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.hourglass_bottom_rounded,
+            size: 36,
+            color: Cores.laranja,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  peloUsuario ? 'Sessão encerrada' : 'Seu tempo acabou',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Cores.tituloVerde,
+                  ),
+                ),
+                Text(
+                  detalhe,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Cores.subtitulo,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      child: FutureBuilder<SugestoesIkAi>(
-        future: _sugestoes,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Cores.laranja,
+    );
+  }
+
+  Widget _rodape() {
+    final c = ControleObjetivos.instance;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Cores.bordaQuente)),
+      ),
+      child: ValueListenableBuilder<Duration>(
+        valueListenable: c.pausaRestante,
+        builder: (context, pausa, _) {
+          final emPausa = pausa > Duration.zero;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: emPausa ? null : c.iniciarNovaSessao,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Cores.laranja,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Text(
-                    'A Ik AI está pensando...',
-                    style: TextStyle(color: Cores.subtitulo),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final itens = snap.data?.itens ?? const <String>[];
-          final viaGemini = snap.data?.fonte == FonteSugestoes.gemini;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Sugestões da Ik AI',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Cores.tituloVerde,
-                ),
-              ),
-              const SizedBox(height: 12),
-              for (var i = 0; i < itens.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: Cores.verdeClaro,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${i + 1}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Cores.verde,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          itens[i],
-                          style: const TextStyle(
-                            fontSize: 14,
-                            height: 1.4,
-                            color: Cores.tituloVerde,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    emPausa
+                        ? 'Nova sessão em ${formatarRelogio(pausa)}'
+                        : 'Iniciar nova sessão',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
-              Text(
-                viaGemini
-                    ? 'Geradas pelo Gemini a partir do que você escreveu.'
-                    : 'Geradas no seu aparelho, sem enviar nada.'
-                        '${kDebugMode && snap.data?.motivoLocal != null ? '\n[debug] ${snap.data!.motivoLocal}' : ''}',
-                style: const TextStyle(fontSize: 11, color: Cores.subtitulo),
               ),
+              if (emPausa)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Uma pausa entre as sessões ajuda a fazer algo fora da '
+                    'tela de verdade.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Cores.subtitulo),
+                  ),
+                ),
             ],
           );
         },

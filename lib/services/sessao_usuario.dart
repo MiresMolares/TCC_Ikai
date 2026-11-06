@@ -1,6 +1,7 @@
 import '../pages_configurar/controle_objetivo.dart';
 import 'auth_service.dart';
 import 'biblioteca_service.dart';
+import 'compromisso_service.dart';
 import 'ik_ai_service.dart';
 import 'progresso_service.dart';
 
@@ -19,6 +20,7 @@ class SessaoUsuario {
       BibliotecaService.instance.carregarPara(u.email),
       ProgressoService.instance.carregarPara(u.email),
       IkAiService.carregarPara(u.email),
+      CompromissoService.instance.carregarPara(u.email),
     ]);
     // Se esta conta tinha uma sessão em andamento (ou já vencida), ela volta
     // do ponto em que estava. Fechar o app não dá tempo novo.
@@ -34,6 +36,7 @@ class SessaoUsuario {
     BibliotecaService.instance.limpar();
     ProgressoService.instance.limpar();
     IkAiService.limpar();
+    CompromissoService.instance.limpar();
     AuthService.instance.sair();
   }
 
@@ -44,6 +47,7 @@ class SessaoUsuario {
     BibliotecaService.instance.limpar();
     ProgressoService.instance.limpar();
     IkAiService.apagarDaConta(); // lê o e-mail antes da conta sair
+    CompromissoService.instance.apagarDaConta();
     AuthService.instance.excluirConta();
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../pages_login/login.dart';
 import '../../services/auth_service.dart';
 import '../../services/biblioteca_service.dart';
+import '../../services/compromisso_service.dart';
 import '../../services/config_service.dart';
 import '../../services/ik_ai_service.dart';
 import '../../services/progresso_service.dart';
@@ -26,7 +27,8 @@ class ConfiguracoesPage extends StatelessWidget {
         '"email":${_aspas(u?.email ?? '')}},'
         '"biblioteca":${BibliotecaService.instance.exportarJson()},'
         '"progresso":${ProgressoService.instance.exportarJson()},'
-        '"ik_ai":${IkAiService.exportarJson()}}';
+        '"ik_ai":${IkAiService.exportarJson()},'
+        '"combinados":${CompromissoService.instance.exportarJson()}}';
     await Clipboard.setData(ClipboardData(text: json));
     if (context.mounted) {
       mostrarAviso(context, 'Seus dados foram copiados. Cole onde quiser.');
@@ -125,6 +127,33 @@ class ConfiguracoesPage extends StatelessWidget {
                       label: '${(cfg.tamanhoTexto * 100).round()}%',
                       activeColor: Cores.laranja,
                       onChanged: cfg.definirTamanhoTexto,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Pausa entre as sessões'),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Depois que o tempo acaba, o app só libera uma nova '
+                      'sessão após a pausa. Ela não pode ser desligada.',
+                      style: TextStyle(fontSize: 12, color: Cores.subtitulo),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final m in ConfigService.opcoesPausa)
+                          ChoiceChip(
+                            label: Text('$m min'),
+                            selected: cfg.pausaMinutos == m,
+                            onSelected: (_) => cfg.definirPausaMinutos(m),
+                          ),
+                      ],
                     ),
                   ],
                 ),

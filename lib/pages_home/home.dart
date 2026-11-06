@@ -7,12 +7,14 @@ import '../services/artigos_repositorio.dart';
 import '../services/auth_service.dart';
 import '../services/config_service.dart';
 import '../widgets/artigo_card.dart';
+import '../widgets/cartao_checkin.dart';
 import '../widgets/estilo.dart';
 import '../widgets/seletor_nivel.dart';
 import 'botoes_home/notificacao.dart';
 import 'biblioteca.dart';
 import 'comunidade.dart';
 import 'explorar.dart';
+import 'ik_ai_page.dart';
 import 'perfil.dart';
 import 'progresso.dart';
 
@@ -145,7 +147,10 @@ class _InicioTabState extends State<InicioTab> {
         const SizedBox(height: 20),
         _CampoBuscaFalso(aoTocar: widget.aoBuscar),
         const SizedBox(height: 20),
+        const CartaoCheckIn(),
         const _CartaoSessao(),
+        const SizedBox(height: 12),
+        const _CartaoIkAi(),
         const SizedBox(height: 24),
         const Text(
           'Seu feed de hoje',
@@ -387,6 +392,62 @@ class _CampoBuscaFalso extends StatelessWidget {
                   style: TextStyle(fontSize: 14, color: Cores.subtitulo),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Atalho para conversar com a Ik AI quando a pessoa quiser ideias do que
+/// fazer longe da tela.
+class _CartaoIkAi extends StatelessWidget {
+  const _CartaoIkAi();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const IkAiPage()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Cores.bordaQuente),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.chat_bubble_outline, color: Cores.laranja),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Conversar com a Ik AI',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Cores.titulo,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Sem ideia do que fazer longe da tela? Conte o que '
+                      'você tem vontade.',
+                      style: TextStyle(fontSize: 12, color: Cores.subtitulo),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey),
             ],
           ),
         ),

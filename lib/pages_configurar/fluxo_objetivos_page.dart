@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../pages_home/home.dart';
 import '../services/gemini_service.dart';
+import '../widgets/cartao_checkin.dart';
 import '../widgets/estilo.dart';
 import 'controle_objetivo.dart';
 
@@ -244,7 +245,9 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    if (c.etapa == 0) const CartaoCheckIn(),
+                    const SizedBox(height: 8),
                     Text(
                       _titulo,
                       style: const TextStyle(

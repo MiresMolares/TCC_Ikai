@@ -22,6 +22,9 @@ class SessaoSalva {
   final int usadoSegundos;
   final bool peloUsuario;
 
+  /// Fim da pausa obrigatória depois da sessão (ms desde 1970). 0 = sem pausa.
+  final int pausaAteMs;
+
   const SessaoSalva({
     required this.objetivoId,
     required this.categoriaId,
@@ -33,6 +36,7 @@ class SessaoSalva {
     this.encerrada = false,
     this.usadoSegundos = 0,
     this.peloUsuario = false,
+    this.pausaAteMs = 0,
   });
 
   /// Tempo decorrido em [agoraMs]. Usa o maior entre "agora" e o último
@@ -54,11 +58,21 @@ class SessaoSalva {
         encerrada: encerrada,
         usadoSegundos: usadoSegundos,
         peloUsuario: peloUsuario,
+        pausaAteMs: pausaAteMs,
       );
+
+  /// Tempo que ainda falta da pausa em [agoraMs]. Como no tempo da sessão,
+  /// usa o maior entre "agora" e o último momento visto.
+  Duration pausaRestanteEm(int agoraMs) {
+    final ref = agoraMs > vistoMs ? agoraMs : vistoMs;
+    final ms = pausaAteMs - ref;
+    return ms <= 0 ? Duration.zero : Duration(milliseconds: ms);
+  }
 
   SessaoSalva comoEncerrada({
     required int usadoSegundos,
     required bool peloUsuario,
+    int pausaAteMs = 0,
   }) =>
       SessaoSalva(
         objetivoId: objetivoId,
@@ -71,6 +85,7 @@ class SessaoSalva {
         encerrada: true,
         usadoSegundos: usadoSegundos,
         peloUsuario: peloUsuario,
+        pausaAteMs: pausaAteMs,
       );
 
   String toJson() => jsonEncode({
@@ -84,6 +99,7 @@ class SessaoSalva {
         'enc': encerrada,
         'uso': usadoSegundos,
         'usr': peloUsuario,
+        'pau': pausaAteMs,
       });
 
   /// Devolve null se o texto gravado for inválido (nunca lança).
@@ -102,6 +118,7 @@ class SessaoSalva {
       final enc = m['enc'];
       final uso = m['uso'];
       final usr = m['usr'];
+      final pau = m['pau'];
       if (o is! String ||
           c is! String ||
           t is! String ||
@@ -126,6 +143,7 @@ class SessaoSalva {
         encerrada: enc,
         usadoSegundos: uso,
         peloUsuario: usr,
+        pausaAteMs: pau is int && pau > 0 ? pau : 0,
       );
     } catch (_) {
       return null;

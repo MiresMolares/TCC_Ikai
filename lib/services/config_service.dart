@@ -12,13 +12,22 @@ class ConfigService extends ChangeNotifier {
   static const _kNotificacoes = 'cfg_notificacoes';
   static const _kTexto = 'cfg_tamanho_texto';
   static const _kNivel = 'cfg_nivel_conteudo';
+  static const _kPausa = 'cfg_pausa_min';
 
   static const double textoMinimo = 0.8;
   static const double textoMaximo = 1.4;
 
+  /// Pausa obrigatória entre uma sessão e a próxima. O mínimo é 5 minutos:
+  /// o app não oferece "sem pausa", porque a pausa é parte do método.
+  static const List<int> opcoesPausa = [5, 10, 15, 30];
+  static const int pausaPadrao = 10;
+
   bool _notificacoes = false;
   double _tamanhoTexto = 1.0;
   int _nivelConteudo = 0;
+  int _pausaMinutos = pausaPadrao;
+
+  int get pausaMinutos => _pausaMinutos;
 
   bool get notificacoes => _notificacoes;
   double get tamanhoTexto => _tamanhoTexto;
@@ -34,6 +43,8 @@ class ConfigService extends ChangeNotifier {
       _tamanhoTexto = t.clamp(textoMinimo, textoMaximo).toDouble();
       final n = p.getInt(_kNivel) ?? 0;
       _nivelConteudo = (n >= 0 && n <= 3) ? n : 0;
+      final pa = p.getInt(_kPausa) ?? pausaPadrao;
+      _pausaMinutos = opcoesPausa.contains(pa) ? pa : pausaPadrao;
     } catch (_) {
       // Sem armazenamento, usa os padrões.
     }
@@ -65,6 +76,16 @@ class ConfigService extends ChangeNotifier {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setInt(_kNivel, nivel);
+    } catch (_) {}
+  }
+
+  Future<void> definirPausaMinutos(int minutos) async {
+    if (!opcoesPausa.contains(minutos)) return;
+    _pausaMinutos = minutos;
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setInt(_kPausa, minutos);
     } catch (_) {}
   }
 }
