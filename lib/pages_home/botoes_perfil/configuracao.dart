@@ -160,8 +160,9 @@ class ConfiguracoesPage extends StatelessWidget {
                 title: const Text('Gemini (Google)'),
                 subtitle: Text(
                   GeminiService.padrao.configurado
-                      ? 'Ativo neste app. Só é usado se você autorizar, na '
-                          'etapa "Ik AI" da versão avançada.'
+                      ? 'Ativo neste app. Só é usado se você autorizar: na '
+                          'etapa "Ik AI" (versão avançada) ou no '
+                          'interruptor dentro da conversa com a Ik AI.'
                       : 'Inativo: falta a chave de acesso (veja '
                           'README_ENTREGA.md). Enquanto isso, as sugestões '
                           'são geradas no seu aparelho.',

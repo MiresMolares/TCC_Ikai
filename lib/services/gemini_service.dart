@@ -16,7 +16,7 @@ import 'sugestoes_locais.dart';
 ///   3. flutter run --dart-define-from-file=env.json
 /// Ou, sem arquivo:
 ///   flutter run --dart-define=GEMINI_API_KEY=SUA_CHAVE
-///   (opcional) --dart-define=GEMINI_MODEL=gemini-3.5-flash
+///   (opcional) --dart-define=GEMINI_MODEL=gemini-3.8-flash
 ///
 /// Sem chave, ou sem a autorização do usuário, ou se a chamada falhar por
 /// qualquer motivo, o app usa [SugestoesLocais] e nunca trava.
@@ -155,7 +155,7 @@ class GeminiService {
   static const String _chaveDoAmbiente =
       String.fromEnvironment('GEMINI_API_KEY');
   static const String _modeloDoAmbiente =
-      String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-3.5-flash');
+      String.fromEnvironment('GEMINI_MODEL', defaultValue: 'gemini-3.8-flash');
 
   /// Instância usada pelo app.
   static final GeminiService padrao = GeminiService();

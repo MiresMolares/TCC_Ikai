@@ -3,7 +3,7 @@
 ## Como aplicar
 1. Na raiz do projeto, APAGUE `lib/` e `test/` e copie as deste pacote no lugar. Mantenha `assets/`.
 2. `flutter pub get`
-3. `flutter run` (sem Gemini: as sugestões da Ik AI são geradas no aparelho).
+3. `flutter run` (sem Gemini: as sugestões da Ik AI são geradas no aparelho). No navegador: `flutter run -d chrome`. Para ligar o Gemini, veja a seção abaixo.
 4. `flutter test` (14 arquivos, 241 testes de lógica).
 
 Conta de teste: `adm@email.com` / `1234`.
@@ -12,9 +12,9 @@ Conta de teste: `adm@email.com` / `1234`.
 O Gemini estava "inativo" porque o app não tinha chave. Agora, em 3 passos:
 1. Crie uma chave em https://aistudio.google.com/apikey
 2. Copie `env.json.example` para `env.json` (o `.gitignore` já impede que suba para o GitHub) e cole a chave em `GEMINI_API_KEY`.
-3. `flutter run --dart-define-from-file=env.json`
+3. `flutter run -d chrome --dart-define-from-file=env.json` (no Codespaces/navegador use sempre essa flag; sem ela o app roda, mas o Gemini fica inativo). Depois de criar ou mudar o `env.json`, pare o app e rode de novo: o valor é lido na compilação, não dá para ativar com hot reload.
 
-Também corrigi o modelo padrão para `gemini-3.5-flash` (o `gemini-3.6-flash` que estava antes não consta na documentação oficial; se a chamada falhar, o app cai nas sugestões locais). Para trocar de modelo, edite `GEMINI_MODEL` no `env.json`.
+Também corrigi o modelo padrão: agora é `gemini-3.8-flash`, que consta como estável na documentação oficial do Google (a lista atual de modelos Flash estáveis é `gemini-3.8-flash` e `gemini-3.6-flash`; o `gemini-3.5-flash` que apareceu numa versão anterior NÃO existe e causava erro 404, que o app escondia caindo nas sugestões locais). Se um dia o Google aposentar o modelo, basta trocar `GEMINI_MODEL` no `env.json`.
 
 Como conferir que está ativo: Configurações > Ik AI > "Gemini (Google)" mostra "Ativo". Na versão avançada, a etapa "Ik AI" libera o interruptor; em modo debug, o console imprime o motivo quando o Gemini não responde (ex.: HTTP 404, chave inválida).
 Limite conhecido: chave dentro do app é extraível. Serve para o TCC; para publicar, a chamada deve passar pelo back-end.
