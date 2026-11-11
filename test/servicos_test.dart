@@ -215,9 +215,11 @@ void main() {
       expect(c.where((x) => x.desbloqueada), isEmpty);
 
       await prog.registrarLeitura(artigosDados.first);
-      await prog.registrarSessao(60);
       c = prog.conquistas(totalSalvos: 1);
-      final ids = c.where((x) => x.desbloqueada).map((x) => x.id).toList();
+      var ids = c.where((x) => x.desbloqueada).map((x) => x.id).toList();
+      expect(ids.contains('tempo_bem_escolhido'), isFalse);
+      c = prog.conquistas(totalSalvos: 1, diasNaMeta: 1);
+      ids = c.where((x) => x.desbloqueada).map((x) => x.id).toList();
       expect(ids, contains('primeira_leitura'));
       expect(ids, contains('tempo_bem_escolhido'));
       expect(ids, contains('organizador'));

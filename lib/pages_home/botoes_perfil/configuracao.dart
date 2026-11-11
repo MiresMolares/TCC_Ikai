@@ -8,7 +8,10 @@ import '../../services/compromisso_service.dart';
 import '../../services/config_service.dart';
 import '../../services/ik_ai_service.dart';
 import '../../services/progresso_service.dart';
+import '../../core/uso_diario.dart';
+import '../../services/gemini_service.dart';
 import '../../services/sessao_usuario.dart';
+import '../../services/tempo_diario.dart';
 import '../../widgets/estilo.dart';
 import '../../widgets/textos_app.dart';
 import '../perfil.dart';
@@ -28,7 +31,8 @@ class ConfiguracoesPage extends StatelessWidget {
         '"biblioteca":${BibliotecaService.instance.exportarJson()},'
         '"progresso":${ProgressoService.instance.exportarJson()},'
         '"ik_ai":${IkAiService.exportarJson()},'
-        '"combinados":${CompromissoService.instance.exportarJson()}}';
+        '"combinados":${CompromissoService.instance.exportarJson()},'
+        '"tempo":${TempoDiarioService.instance.exportarJson()}}';
     await Clipboard.setData(ClipboardData(text: json));
     if (context.mounted) {
       mostrarAviso(context, 'Seus dados foram copiados. Cole onde quiser.');
@@ -87,7 +91,7 @@ class ConfiguracoesPage extends StatelessWidget {
         backgroundColor: Cores.fundo,
       ),
       body: ListenableBuilder(
-        listenable: cfg,
+        listenable: Listenable.merge([cfg, TempoDiarioService.instance]),
         builder: (context, _) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
           children: [
@@ -131,31 +135,36 @@ class ConfiguracoesPage extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Pausa entre as sessões'),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Depois que o tempo acaba, o app só libera uma nova '
-                      'sessão após a pausa. Ela não pode ser desligada.',
-                      style: TextStyle(fontSize: 12, color: Cores.subtitulo),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final m in ConfigService.opcoesPausa)
-                          ChoiceChip(
-                            label: Text('$m min'),
-                            selected: cfg.pausaMinutos == m,
-                            onSelected: (_) => cfg.definirPausaMinutos(m),
-                          ),
-                      ],
-                    ),
-                  ],
+            ]),
+            const _Secao('Seu tempo no Ikai'),
+            const _CartaoMeta(),
+            const _Secao('Ik AI'),
+            _Cartao([
+              SwitchListTile(
+                value: TempoDiarioService.instance.avancado,
+                onChanged: TempoDiarioService.instance.definirModoAvancado,
+                activeTrackColor: Cores.verde,
+                title: const Text('Versão avançada'),
+                subtitle: const Text(
+                  'Acrescenta o lembrete de foco e o espaço para contar à '
+                  'Ik AI o que você quer fazer longe da tela.',
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                  GeminiService.padrao.configurado
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
+                  color: Cores.laranja,
+                ),
+                title: const Text('Gemini (Google)'),
+                subtitle: Text(
+                  GeminiService.padrao.configurado
+                      ? 'Ativo neste app. Só é usado se você autorizar, na '
+                          'etapa "Ik AI" da versão avançada.'
+                      : 'Inativo: falta a chave de acesso (veja '
+                          'README_ENTREGA.md). Enquanto isso, as sugestões '
+                          'são geradas no seu aparelho.',
                 ),
               ),
             ]),
@@ -232,6 +241,80 @@ class ConfiguracoesPage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Meta diária de uso. Diminuir vale na hora; aumentar vale a partir de
+/// amanhã (para o limite não esticar no calor do momento).
+class _CartaoMeta extends StatelessWidget {
+  const _CartaoMeta();
+
+  void _mudar(BuildContext context, int minutos) {
+    final t = TempoDiarioService.instance;
+    final antes = t.metaMin;
+    final r = t.definirMeta(minutos);
+    switch (r) {
+      case ResultadoMeta.aplicadaAgora:
+        if (minutos != antes) {
+          mostrarAviso(context, 'Meta de ${formatarHm(minutos * 60)} por dia.');
+        }
+      case ResultadoMeta.aPartirDeAmanha:
+        mostrarAviso(
+          context,
+          'Sua nova meta de ${formatarHm(minutos * 60)} começa amanhã. '
+          'Hoje continua em ${formatarHm(antes * 60)}.',
+        );
+      case ResultadoMeta.invalida:
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = TempoDiarioService.instance;
+    final amanha = t.metaDeAmanhaMin;
+    final opcoes = {...TempoDiarioService.opcoesDeMeta, t.metaMin}.toList()
+      ..sort();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Cores.bordaQuente),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Meta diária de uso'),
+          const SizedBox(height: 2),
+          const Text(
+            'A Ik AI avisa na metade e conversa com você no fim. Diminuir '
+            'vale na hora; aumentar vale a partir de amanhã.',
+            style: TextStyle(fontSize: 12, color: Cores.subtitulo),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final m in opcoes)
+                ChoiceChip(
+                  label: Text(formatarHm(m * 60)),
+                  selected: t.metaMin == m,
+                  onSelected: (_) => _mudar(context, m),
+                ),
+            ],
+          ),
+          if (amanha != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Amanhã sua meta passa a ${formatarHm(amanha * 60)}.',
+              style: const TextStyle(fontSize: 12, color: Cores.verde),
+            ),
+          ],
+        ],
       ),
     );
   }

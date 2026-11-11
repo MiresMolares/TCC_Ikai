@@ -127,6 +127,13 @@ class ProgressoService extends ChangeNotifier {
     return primeira;
   }
 
+  /// Marca hoje como dia de uso (alimenta a ofensiva).
+  Future<void> marcarDia() async {
+    if (!_dias.add(chaveDia(agora()))) return;
+    notifyListeners();
+    await _salvar();
+  }
+
   Future<void> registrarSessao(int segundosUsados) async {
     _sessoes++;
     _segundos += segundosUsados < 0 ? 0 : segundosUsados;
@@ -144,7 +151,7 @@ class ProgressoService extends ChangeNotifier {
 
   // ---------- Conquistas (derivadas dos próprios números) ----------
 
-  List<Conquista> conquistas({required int totalSalvos}) {
+  List<Conquista> conquistas({required int totalSalvos, int diasNaMeta = 0}) {
     final porObjetivo = lidosPorObjetivo();
     final tresCaminhos = ['ver_conteudo', 'ler', 'estudar']
         .every((o) => (porObjetivo[o] ?? 0) >= 1);
@@ -170,8 +177,8 @@ class ProgressoService extends ChangeNotifier {
       Conquista(
         id: 'tempo_bem_escolhido',
         titulo: 'Tempo bem escolhido',
-        descricao: 'Termine uma sessão no tempo que você definiu.',
-        desbloqueada: sessoesConcluidas >= 1,
+        descricao: 'Termine um dia dentro da sua meta diária.',
+        desbloqueada: diasNaMeta >= 1,
       ),
       Conquista(
         id: 'tres_dias',

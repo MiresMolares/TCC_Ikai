@@ -4,12 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show IconData;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/duracao.dart';
-import '../core/relogio_sessao.dart';
-import '../core/sessao_salva.dart';
+import '../core/selecao_salva.dart';
+import '../core/uso_diario.dart';
 import '../services/auth_service.dart';
-import '../services/config_service.dart';
-import '../services/progresso_service.dart';
+import '../services/tempo_diario.dart';
 import './objetivo_conteudo.dart';
 import './objetivo_estudo.dart';
 import './objetivo_leitura.dart';
@@ -70,85 +68,93 @@ Objetivo? buscarObjetivo(String? id) {
 }
 
 // =====================================================
-// CONTROLADOR CENTRAL (ESCOLHAS + HISTÓRICO + SESSÃO + TEMPO)
+// CONTROLADOR DA ESCOLHA (OBJETIVO + CATEGORIAS + IK AI)
 // =====================================================
 
-enum EstadoSessao { naoIniciada, ativa, expirada }
+/// "ativa" quer dizer: a pessoa já escolheu o que quer ver hoje. Não existe
+/// mais relógio aqui: o tempo é da meta diária (veja TempoDiarioService).
+enum EstadoSessao { naoIniciada, ativa }
 
-/// Foto da sessão que acabou. A tela final e a Ik AI leem daqui, porque o
-/// controlador é reiniciado só quando o usuário começa uma nova sessão.
-class ResumoSessao {
-  final String objetivoTitulo;
-  final String categoriaTitulo;
-  final String textoIkAi;
-  final bool permitiuEnvioGemini;
-  final int duracaoPlanejadaSegundos;
-  final int usadoSegundos;
-  final bool encerradaPeloUsuario;
+/// Etapas do fluxo. O modo iniciante tem as duas primeiras; o avançado, as
+/// quatro.
+enum EtapaFluxo { objetivo, categorias, foco, ikai }
 
-  const ResumoSessao({
-    required this.objetivoTitulo,
-    required this.categoriaTitulo,
-    required this.textoIkAi,
-    required this.permitiuEnvioGemini,
-    required this.duracaoPlanejadaSegundos,
-    required this.usadoSegundos,
-    required this.encerradaPeloUsuario,
-  });
-}
-
-/// Fonte de verdade de tudo. As escolhas e a sessão ficam só em memória;
-/// apenas o histórico (usado como SUGESTÃO, nunca aplicado sozinho) é
-/// gravado no aparelho, separado por usuário.
+/// Fonte de verdade da escolha atual. A escolha do dia é gravada (vale só no
+/// dia), e o histórico, usado como SUGESTÃO (nunca aplicado sozinho), fica
+/// separado por usuário.
 class ControleObjetivos extends ChangeNotifier {
   ControleObjetivos._()
-      : _relogio = RelogioSessao(),
-        _agora = DateTime.now,
-        _pausaMin = (() => ConfigService.instance.pausaMinutos);
+      : _avancado = (() => TempoDiarioService.instance.avancado),
+        _agora = DateTime.now;
 
-  /// Para testes: relógios controlados.
+  /// Para testes: modo e relógio controlados.
   @visibleForTesting
   ControleObjetivos.paraTeste({
+    bool Function()? avancado,
     DateTime Function()? agora,
-    Duration Function()? monotonico,
-    int Function()? pausaMinutos,
-  })  : _relogio = RelogioSessao(agora: agora, monotonico: monotonico),
-        _agora = agora ?? DateTime.now,
-        _pausaMin = pausaMinutos ?? (() => ConfigService.pausaPadrao);
+  })  : _avancado = avancado ?? (() => false),
+        _agora = agora ?? DateTime.now;
 
   static final ControleObjetivos instance = ControleObjetivos._();
 
   static const _kObjetivo = 'hist_objetivo_id';
-  static const _kCategoria = 'hist_categoria_id';
-  static const _kDuracao = 'hist_duracao_s';
+  static const _kCategorias = 'hist_categoria_id'; // ids separados por vírgula
+  static const _kFoco = 'hist_foco_min';
   static const _kTexto = 'hist_texto_ikai';
-  static const _kSessao = 'sessao_salva_v1';
+  static const _kSelecao = 'selecao_v1';
 
-  /// Etapas: 0 objetivo, 1 categoria, 2 duração, 3 Ik AI (opcional).
-  static const int ultimaEtapa = 3;
   static const int limiteTextoIkAi = 300;
 
-  final RelogioSessao _relogio;
-  final DateTime Function() _agora;
-  final int Function() _pausaMin;
+  /// Mais categorias que isso deixa o feed (fixo em 8) sem foco.
+  static const int maxCategorias = 5;
 
-  // ---------- Escolhas do ciclo atual (sempre começam vazias) ----------
+  /// Lembretes de foco do modo avançado (0 = sem lembrete).
+  static const List<int> opcoesFoco = [10, 15, 20, 30, 45];
+
+  final bool Function() _avancado;
+  final DateTime Function() _agora;
+
+  // ---------- Etapas ----------
   int etapa = 0;
+
+  List<EtapaFluxo> get etapas => _avancado()
+      ? const [
+          EtapaFluxo.objetivo,
+          EtapaFluxo.categorias,
+          EtapaFluxo.foco,
+          EtapaFluxo.ikai,
+        ]
+      : const [EtapaFluxo.objetivo, EtapaFluxo.categorias];
+
+  int get ultimaEtapa => etapas.length - 1;
+
+  EtapaFluxo get etapaAtual {
+    final e = etapas;
+    return e[etapa < 0 ? 0 : (etapa >= e.length ? e.length - 1 : etapa)];
+  }
+
+  // ---------- Escolhas (sempre começam vazias) ----------
   Objetivo? objetivo;
-  Categoria? categoria;
-  int horas = 0;
-  int minutos = 0;
-  int segundos = 0;
+  final List<Categoria> _categorias = [];
+  int focoMin = 0;
   String textoIkAi = '';
   bool permitirGemini = false;
 
-  int get duracaoSegundos => horas * 3600 + minutos * 60 + segundos;
+  List<Categoria> get categorias => List.unmodifiable(_categorias);
+
+  /// Ids na ordem em que a pessoa escolheu.
+  Set<String> get categoriaIds => {for (final c in _categorias) c.id};
+
+  bool temCategoria(String id) => _categorias.any((c) => c.id == id);
+
+  /// "Romance, Fantasia" (para telas e para a Ik AI).
+  String get titulosDasCategorias => _categorias.map((c) => c.titulo).join(', ');
 
   // ---------- Histórico (só sugestões) ----------
   bool historicoCarregado = false;
   String? _hObjetivo;
-  String? _hCategoria;
-  int? _hDuracao;
+  List<String> _hCategorias = const [];
+  int? _hFoco;
   String? _hTexto;
 
   /// Cada conta tem o próprio histórico.
@@ -160,8 +166,11 @@ class ControleObjetivos extends ChangeNotifier {
     try {
       final p = await SharedPreferences.getInstance();
       _hObjetivo = p.getString(_chave(_kObjetivo));
-      _hCategoria = p.getString(_chave(_kCategoria));
-      _hDuracao = p.getInt(_chave(_kDuracao));
+      final cats = p.getString(_chave(_kCategorias));
+      _hCategorias = (cats == null || cats.isEmpty)
+          ? const []
+          : cats.split(',').where((c) => c.isNotEmpty).toList();
+      _hFoco = p.getInt(_chave(_kFoco));
       _hTexto = p.getString(_chave(_kTexto));
     } catch (_) {
       // Falha de leitura nunca impede o uso.
@@ -174,22 +183,24 @@ class ControleObjetivos extends ChangeNotifier {
   void descartarHistoricoEmMemoria() {
     historicoCarregado = false;
     _hObjetivo = null;
-    _hCategoria = null;
-    _hDuracao = null;
+    _hCategorias = const [];
+    _hFoco = null;
     _hTexto = null;
   }
 
-  Future<void> _salvarHistorico(String o, String c, int s, String t) async {
-    _hObjetivo = o;
-    _hCategoria = c;
-    _hDuracao = s;
-    _hTexto = t;
+  Future<void> _salvarHistorico() async {
+    final o = objetivo;
+    if (o == null) return;
+    _hObjetivo = o.id;
+    _hCategorias = _categorias.map((c) => c.id).toList();
+    _hFoco = focoMin;
+    _hTexto = textoIkAi.trim();
     try {
       final p = await SharedPreferences.getInstance();
-      await p.setString(_chave(_kObjetivo), o);
-      await p.setString(_chave(_kCategoria), c);
-      await p.setInt(_chave(_kDuracao), s);
-      await p.setString(_chave(_kTexto), t);
+      await p.setString(_chave(_kObjetivo), o.id);
+      await p.setString(_chave(_kCategorias), _hCategorias.join(','));
+      await p.setInt(_chave(_kFoco), focoMin);
+      await p.setString(_chave(_kTexto), textoIkAi.trim());
     } catch (_) {
       // Falha ao gravar não impede o uso.
     }
@@ -197,13 +208,19 @@ class ControleObjetivos extends ChangeNotifier {
 
   String? get sugestaoObjetivoId => buscarObjetivo(_hObjetivo)?.id;
 
-  /// Só sugere categoria que pertença ao objetivo escolhido agora.
-  String? get sugestaoCategoriaId =>
-      objetivo?.buscarCategoria(_hCategoria)?.id;
+  /// Só sugere categorias que pertençam ao objetivo escolhido agora.
+  Set<String> get sugestaoCategoriaIds {
+    final o = objetivo;
+    if (o == null) return const {};
+    return {
+      for (final id in _hCategorias)
+        if (o.buscarCategoria(id) != null) id,
+    };
+  }
 
-  int? get sugestaoDuracao {
-    final d = _hDuracao;
-    return (d != null && duracaoValida(d)) ? d : null;
+  int? get sugestaoFoco {
+    final f = _hFoco;
+    return (f != null && f > 0 && opcoesFoco.contains(f)) ? f : null;
   }
 
   String? get sugestaoTexto {
@@ -214,41 +231,49 @@ class ControleObjetivos extends ChangeNotifier {
   // ---------- Ações de escolha (sempre explícitas) ----------
   void selecionarObjetivo(Objetivo o) {
     if (_estado != EstadoSessao.naoIniciada) return;
-    if (objetivo?.id != o.id) categoria = null; // invalida categoria incompatível
+    if (objetivo?.id != o.id) _categorias.clear(); // categorias do outro objetivo
     objetivo = o;
     notifyListeners();
   }
 
-  void selecionarCategoria(Categoria c) {
+  /// Marca ou desmarca. Devolve false se bateu no limite de categorias.
+  bool alternarCategoria(Categoria c) {
+    if (_estado != EstadoSessao.naoIniciada) return true;
+    if (objetivo?.buscarCategoria(c.id) == null) return true; // incompatível
+    final i = _categorias.indexWhere((x) => x.id == c.id);
+    if (i >= 0) {
+      _categorias.removeAt(i);
+    } else {
+      if (_categorias.length >= maxCategorias) return false;
+      _categorias.add(c);
+    }
+    notifyListeners();
+    return true;
+  }
+
+  /// Chamado só quando o usuário TOCA em "usar sugestão".
+  void aplicarSugestaoCategorias() {
     if (_estado != EstadoSessao.naoIniciada) return;
-    if (objetivo?.buscarCategoria(c.id) == null) return; // incompatível
-    categoria = c;
+    final o = objetivo;
+    if (o == null) return;
+    _categorias.clear();
+    for (final id in sugestaoCategoriaIds.take(maxCategorias)) {
+      final c = o.buscarCategoria(id);
+      if (c != null) _categorias.add(c);
+    }
     notifyListeners();
   }
 
-  void definirDuracao(int h, int m, int s) {
+  void definirFoco(int minutos) {
     if (_estado != EstadoSessao.naoIniciada) return;
-    horas = h;
-    minutos = m;
-    segundos = s;
+    if (minutos != 0 && !opcoesFoco.contains(minutos)) return;
+    focoMin = minutos;
     notifyListeners();
   }
 
-  /// Atalho para as opções rápidas (5 min, 10 min, 1 h...).
-  void definirDuracaoTotal(int totalSegundos) {
-    if (totalSegundos < 0) return;
-    definirDuracao(
-      totalSegundos ~/ 3600,
-      (totalSegundos % 3600) ~/ 60,
-      totalSegundos % 60,
-    );
-  }
-
-  /// Chamado só quando o usuário TOCA na sugestão de duração.
-  void aplicarSugestaoDuracao() {
-    final d = sugestaoDuracao;
-    if (d == null) return;
-    definirDuracaoTotal(d);
+  void aplicarSugestaoFoco() {
+    final f = sugestaoFoco;
+    if (f != null) definirFoco(f);
   }
 
   void definirTextoIkAi(String texto) {
@@ -273,18 +298,21 @@ class ControleObjetivos extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get _categoriasValidas {
+    final o = objetivo;
+    if (o == null || _categorias.isEmpty) return false;
+    return _categorias.every((c) => o.buscarCategoria(c.id) != null);
+  }
+
   bool get podeAvancar {
-    switch (etapa) {
-      case 0:
+    switch (etapaAtual) {
+      case EtapaFluxo.objetivo:
         return objetivo != null;
-      case 1:
-        return objetivo != null &&
-            categoria != null &&
-            objetivo!.buscarCategoria(categoria!.id) != null;
-      case 2:
-        return duracaoValida(duracaoSegundos);
-      default:
-        return true; // Ik AI é opcional
+      case EtapaFluxo.categorias:
+        return _categoriasValidas;
+      case EtapaFluxo.foco:
+      case EtapaFluxo.ikai:
+        return true; // opcionais
     }
   }
 
@@ -302,296 +330,119 @@ class ControleObjetivos extends ChangeNotifier {
 
   bool _confirmando = false;
 
-  /// Confirmação final explícita. Única porta de entrada da sessão.
+  /// Confirmação final explícita. Única porta de entrada.
   Future<bool> confirmar() async {
     if (_confirmando) return false;
     if (_estado != EstadoSessao.naoIniciada ||
         etapa != ultimaEtapa ||
-        !_escolhasCompletas) {
+        objetivo == null ||
+        !_categoriasValidas) {
       return false;
     }
-    final o = objetivo!;
-    final c = categoria!;
-    final s = duracaoSegundos;
-
     _confirmando = true;
     try {
-      // A sessão começa JÁ. Gravar o histórico não atrasa nem pausa o relógio.
-      _iniciar(s);
-      final agoraMs = _agora().millisecondsSinceEpoch;
-      _salva = SessaoSalva(
-        objetivoId: o.id,
-        categoriaId: c.id,
-        texto: textoIkAi.trim(),
-        permitirGemini: permitirGemini,
-        totalSegundos: s,
-        inicioMs: agoraMs,
-        vistoMs: agoraMs,
-      );
-      _ultimaGravacaoMs = agoraMs;
-      unawaited(_gravarSalva());
-      unawaited(_salvarHistorico(o.id, c.id, s, textoIkAi.trim()));
+      // No modo iniciante estas opções nem aparecem: ficam vazias.
+      if (!_avancado()) {
+        focoMin = 0;
+        textoIkAi = '';
+        permitirGemini = false;
+      }
+      _estado = EstadoSessao.ativa;
+      TempoDiarioService.instance.definirFoco(focoMin);
+      unawaited(_gravarSelecao());
+      unawaited(_salvarHistorico());
+      notifyListeners();
     } finally {
       _confirmando = false;
     }
     return true;
   }
 
-  bool get _escolhasCompletas {
-    final o = objetivo;
-    final c = categoria;
-    return o != null &&
-        c != null &&
-        o.buscarCategoria(c.id) != null &&
-        duracaoValida(duracaoSegundos);
-  }
-
-  // ---------- Sessão e cronômetro ----------
+  // ---------- Escolha gravada (vale só no dia) ----------
   EstadoSessao _estado = EstadoSessao.naoIniciada;
-  Timer? _timer;
-  ResumoSessao? _ultimoResumo;
-
-  /// Tempo restante, atualizado a cada segundo (para exibir na UI).
-  final ValueNotifier<Duration> restante = ValueNotifier(Duration.zero);
-
   EstadoSessao get estado => _estado;
-  ResumoSessao? get ultimoResumo => _ultimoResumo;
-  Duration get duracaoTotal => _relogio.total;
-  double get fracaoUsada => _relogio.fracaoUsada;
 
-  void _iniciar(int segundosTotais, {Duration decorrido = Duration.zero}) {
-    if (_estado != EstadoSessao.naoIniciada) return; // nunca 2 sessões
-    if (decorrido == Duration.zero) {
-      _relogio.iniciar(Duration(seconds: segundosTotais));
-    } else {
-      _relogio.retomar(Duration(seconds: segundosTotais), decorrido);
-    }
-    restante.value = _relogio.restante;
-    _estado = EstadoSessao.ativa;
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => verificar());
-    notifyListeners();
-  }
-
-  // ---------- Sessão gravada (vale mesmo fechando o app) ----------
-  SessaoSalva? _salva;
-  int _ultimaGravacaoMs = 0;
-
-  String get _chaveSessao => _chave(_kSessao);
-
-  Future<void> _gravarSalva() async {
-    final s = _salva;
-    if (s == null) return;
-    final chave = _chaveSessao; // a chave é da conta de agora, não da próxima
+  Future<void> _gravarSelecao() async {
+    final o = objetivo;
+    if (o == null || _categorias.isEmpty) return;
+    final chave = _chave(_kSelecao); // a chave é da conta de agora
+    final s = SelecaoSalva(
+      objetivoId: o.id,
+      categoriaIds: _categorias.map((c) => c.id).toList(),
+      texto: textoIkAi.trim(),
+      permitirGemini: permitirGemini,
+      focoMin: focoMin,
+      dia: chaveDoDia(_agora()),
+    );
     try {
       final p = await SharedPreferences.getInstance();
       await p.setString(chave, s.toJson());
-    } catch (_) {
-      // Sem armazenamento a sessão continua valendo em memória.
-    }
+    } catch (_) {}
   }
 
-  Future<void> _apagarSalva() async {
-    final chave = _chaveSessao;
+  Future<void> _apagarSelecao() async {
+    final chave = _chave(_kSelecao);
     try {
       final p = await SharedPreferences.getInstance();
       await p.remove(chave);
     } catch (_) {}
   }
 
-  /// Chamado logo depois do login. Se havia uma sessão gravada para esta
-  /// conta, ela volta exatamente de onde estava: fechar o app, sair da conta
-  /// ou voltar a hora do celular não dá tempo novo.
-  Future<void> restaurarSessao() async {
+  /// Chamado logo depois do login. Se a pessoa já escolheu o que ver hoje,
+  /// a escolha volta; escolha de outro dia é descartada.
+  Future<void> restaurarSelecao() async {
     if (_estado != EstadoSessao.naoIniciada) return;
-    SessaoSalva? s;
-    final chave = _chaveSessao;
+    SelecaoSalva? s;
+    final chave = _chave(_kSelecao);
     try {
       final p = await SharedPreferences.getInstance();
-      s = SessaoSalva.tentarLer(p.getString(chave));
+      s = SelecaoSalva.tentarLer(p.getString(chave));
     } catch (_) {
       return;
     }
     if (s == null) return;
 
     final o = buscarObjetivo(s.objetivoId);
-    final c = o?.buscarCategoria(s.categoriaId);
-    if (o == null || c == null) {
-      await _apagarSalva();
+    final cats = <Categoria>[];
+    if (o != null) {
+      for (final id in s.categoriaIds) {
+        final c = o.buscarCategoria(id);
+        if (c != null) cats.add(c);
+      }
+    }
+    if (o == null || cats.isEmpty || s.dia != chaveDoDia(_agora())) {
+      await _apagarSelecao();
       return;
     }
 
     objetivo = o;
-    categoria = c;
+    _categorias
+      ..clear()
+      ..addAll(cats);
     textoIkAi = s.texto;
     permitirGemini = s.permitirGemini;
-    definirDuracaoTotalInterno(s.totalSegundos);
-    _salva = s;
-
-    final total = Duration(seconds: s.totalSegundos);
-
-    if (s.encerrada) {
-      _relogio.retomar(total, Duration(seconds: s.usadoSegundos));
-      _relogio.parar();
-      _ultimoResumo = _montarResumo(
-        total: total,
-        usado: Duration(seconds: s.usadoSegundos),
-        peloUsuario: s.peloUsuario,
-      );
-      _estado = EstadoSessao.expirada;
-      restante.value = Duration.zero;
-      atualizarPausa();
-      notifyListeners();
-      return;
-    }
-
-    final decorrido = s.decorridoEm(_agora().millisecondsSinceEpoch);
-    _iniciar(s.totalSegundos, decorrido: decorrido);
-    verificar(); // se já passou do fim, encerra agora
-  }
-
-  /// Só preenche horas/minutos/segundos (sem checar o estado).
-  void definirDuracaoTotalInterno(int totalSegundos) {
-    horas = totalSegundos ~/ 3600;
-    minutos = (totalSegundos % 3600) ~/ 60;
-    segundos = totalSegundos % 60;
-  }
-
-  ResumoSessao _montarResumo({
-    required Duration total,
-    required Duration usado,
-    required bool peloUsuario,
-  }) {
-    final usadoFinal = usado > total ? total : usado;
-    return ResumoSessao(
-      objetivoTitulo: objetivo?.titulo ?? '',
-      categoriaTitulo: categoria?.titulo ?? '',
-      textoIkAi: textoIkAi.trim(),
-      permitiuEnvioGemini: permitirGemini,
-      duracaoPlanejadaSegundos: total.inSeconds,
-      usadoSegundos: usadoFinal.inSeconds,
-      encerradaPeloUsuario: peloUsuario,
-    );
-  }
-
-  /// Recalcula o restante. Também é chamado ao voltar do segundo plano.
-  void verificar() {
-    if (_estado != EstadoSessao.ativa) return;
-    if (_relogio.expirou) {
-      _encerrar(peloUsuario: false);
-    } else {
-      restante.value = _relogio.restante;
-      final agoraMs = _agora().millisecondsSinceEpoch;
-      if (_salva != null && agoraMs - _ultimaGravacaoMs >= 10000) {
-        _salva = _salva!.comVisto(agoraMs);
-        _ultimaGravacaoMs = agoraMs;
-        unawaited(_gravarSalva());
-      }
-    }
-  }
-
-  /// O usuário decide terminar antes do tempo.
-  void encerrarAgora() => _encerrar(peloUsuario: true);
-
-  void _encerrar({required bool peloUsuario}) {
-    if (_estado != EstadoSessao.ativa) return; // processa uma única vez
-    final usado = _relogio.decorrido;
-    final total = _relogio.total;
-    _timer?.cancel();
-    _timer = null;
-    _relogio.parar();
-
-    final usadoFinal = usado > total ? total : usado;
-    _ultimoResumo = _montarResumo(
-      total: total,
-      usado: usado,
-      peloUsuario: peloUsuario,
-    );
-    _estado = EstadoSessao.expirada; // estado terminal: não há volta
-    restante.value = Duration.zero;
-    final salva = _salva;
-    if (salva != null) {
-      final agoraMs = _agora().millisecondsSinceEpoch;
-      // A pausa conta a partir do FIM da sessão. Se o app ficou fechado e o
-      // tempo já venceu, esse intervalo longe da tela conta como pausa.
-      final fimNatural = salva.inicioMs + salva.totalSegundos * 1000;
-      final fimMs = (peloUsuario || fimNatural > agoraMs) ? agoraMs : fimNatural;
-      _salva = salva.comVisto(agoraMs).comoEncerrada(
-            usadoSegundos: usadoFinal.inSeconds,
-            peloUsuario: peloUsuario,
-            pausaAteMs: fimMs + _pausaMin() * 60000,
-          );
-      unawaited(_gravarSalva());
-      _ultimaGravacaoMs = agoraMs;
-    }
-    atualizarPausa();
-    unawaited(ProgressoService.instance.registrarSessao(usadoFinal.inSeconds));
+    focoMin = s.focoMin;
+    _estado = EstadoSessao.ativa;
     notifyListeners();
   }
 
-  // ---------- Pausa obrigatória entre sessões ----------
-
-  /// Quanto falta da pausa. Só tem valor depois que a sessão acaba.
-  final ValueNotifier<Duration> pausaRestante = ValueNotifier(Duration.zero);
-
-  bool get emPausa => pausaRestante.value > Duration.zero;
-
-  /// Recalcula a pausa (a tela de bloqueio chama a cada segundo). Usa o mesmo
-  /// cuidado do tempo da sessão: voltar a hora do celular não encurta a pausa.
-  void atualizarPausa() {
-    final s = _salva;
-    if (_estado != EstadoSessao.expirada || s == null) {
-      pausaRestante.value = Duration.zero;
-      return;
-    }
-    final agoraMs = _agora().millisecondsSinceEpoch;
-    final r = s.pausaRestanteEm(agoraMs);
-    pausaRestante.value = r;
-    if (r > Duration.zero && agoraMs - _ultimaGravacaoMs >= 10000) {
-      _salva = s.comVisto(agoraMs);
-      _ultimaGravacaoMs = agoraMs;
-      unawaited(_gravarSalva());
-    }
-  }
-
-  /// Única porta para a próxima sessão: só abre depois da pausa.
-  /// Devolve false se ainda falta pausa.
-  bool iniciarNovaSessao() {
-    if (_estado == EstadoSessao.expirada) {
-      atualizarPausa();
-      if (emPausa) return false;
-    }
-    reiniciarSessao();
-    return true;
-  }
-
-  /// O usuário começa uma NOVA sessão (botão da tela de bloqueio) ou a conta
-  /// é excluída: apaga também a sessão gravada.
+  /// A pessoa quer escolher outra coisa (ou a conta foi excluída): apaga
+  /// também a escolha gravada.
   void reiniciarSessao() {
     descartarSessaoEmMemoria();
-    unawaited(_apagarSalva());
+    unawaited(_apagarSelecao());
   }
 
-  /// Limpa só a memória (troca de conta). A sessão gravada permanece, para
-  /// que sair e entrar de novo não ganhe tempo.
+  /// Limpa só a memória (troca de conta). A escolha gravada permanece.
   void descartarSessaoEmMemoria() {
-    _salva = null;
-    _timer?.cancel();
-    _timer = null;
-    _relogio.zerar();
     _estado = EstadoSessao.naoIniciada;
     _confirmando = false;
-    _ultimoResumo = null;
     etapa = 0;
     objetivo = null;
-    categoria = null;
-    horas = 0;
-    minutos = 0;
-    segundos = 0;
+    _categorias.clear();
+    focoMin = 0;
     textoIkAi = '';
     permitirGemini = false;
-    restante.value = Duration.zero;
-    pausaRestante.value = Duration.zero;
     notifyListeners();
   }
 }

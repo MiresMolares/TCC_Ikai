@@ -49,15 +49,15 @@ void main() {
     });
 
     test('o feed continua finito e respeita o nível', () {
-      final base = ArtigosRepositorio.doModo('ler', 'ler_distopia');
+      final base = ArtigosRepositorio.doModo('ler', {'ler_distopia'});
       final alvo = base.first.nivel;
       final outro = alvo == 3 ? 1 : alvo + 1;
       expect(
-        ArtigosRepositorio.feedDaSessao('ler', 'ler_distopia', nivel: alvo),
+        ArtigosRepositorio.feedDaSessao('ler', {'ler_distopia'}, nivel: alvo),
         isNotEmpty,
       );
       final feedOutro =
-          ArtigosRepositorio.feedDaSessao('ler', 'ler_distopia', nivel: outro);
+          ArtigosRepositorio.feedDaSessao('ler', {'ler_distopia'}, nivel: outro);
       expect(feedOutro.every((a) => a.nivel == outro), isTrue);
       expect(feedOutro.length, lessThanOrEqualTo(conteudosPorSessao));
     });

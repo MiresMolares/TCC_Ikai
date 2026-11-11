@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../pages_home/home.dart';
+import '../services/artigos_repositorio.dart' show conteudosPorSessao;
 import '../services/gemini_service.dart';
+import '../services/tempo_diario.dart';
 import '../widgets/cartao_checkin.dart';
+import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
 import 'controle_objetivo.dart';
 
@@ -105,34 +108,155 @@ class OpcaoCard extends StatelessWidget {
   }
 }
 
-/// Lista rolável de categorias.
-class ListaCategorias extends StatelessWidget {
-  final List<Categoria> categorias;
-  final String? selecionadaId;
-  final String? sugeridaId;
-  final ValueChanged<Categoria> aoSelecionar;
+/// Categoria em QUADRADO: ícone grande, título embaixo, várias podem estar
+/// marcadas ao mesmo tempo. Vira o item da grade de 2 por fileira.
+class CategoriaQuadrada extends StatelessWidget {
+  final Categoria categoria;
+  final bool selecionada;
+  final bool sugerida;
+  final VoidCallback onTap;
 
-  const ListaCategorias({
+  const CategoriaQuadrada({
     super.key,
-    required this.categorias,
-    required this.selecionadaId,
-    required this.sugeridaId,
-    required this.aoSelecionar,
+    required this.categoria,
+    required this.selecionada,
+    required this.sugerida,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    final mostrarSugestao = sugerida && !selecionada;
+    return Semantics(
+      button: true,
+      selected: selecionada,
+      label: categoria.titulo,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: selecionada ? const Color(0xFFE4EFE5) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selecionada
+                  ? Cores.laranja
+                  : mostrarSugestao
+                      ? const Color(0xFF8FA3B5)
+                      : const Color(0xFFE0E5DF),
+              width: (selecionada || mostrarSugestao) ? 2 : 1,
+            ),
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          color: selecionada
+                              ? const Color(0xFFD0E3D2)
+                              : const Color(0xFFF0F3EE),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Icon(
+                          categoria.icone,
+                          color: Cores.laranja,
+                          size: 42,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        categoria.titulo,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Cores.tituloVerde,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Icon(
+                  selecionada ? Icons.check_circle : Icons.circle_outlined,
+                  color: selecionada ? Cores.laranja : Colors.grey.shade400,
+                  size: 24,
+                ),
+              ),
+              if (mostrarSugestao)
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDF1F3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'Sugestão',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4F6275),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Grade de categorias: 2 por fileira, quadradas, seleção múltipla.
+class GradeCategorias extends StatelessWidget {
+  final List<Categoria> categorias;
+  final bool Function(String id) estaSelecionada;
+  final Set<String> sugeridas;
+  final ValueChanged<Categoria> aoAlternar;
+
+  const GradeCategorias({
+    super.key,
+    required this.categorias,
+    required this.estaSelecionada,
+    required this.sugeridas,
+    required this.aoAlternar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
       itemCount: categorias.length,
-      separatorBuilder: (context, indice) => const SizedBox(height: 12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1,
+      ),
       itemBuilder: (context, i) {
         final cat = categorias[i];
-        return OpcaoCard(
-          titulo: cat.titulo,
-          icone: cat.icone,
-          selecionado: selecionadaId == cat.id,
-          sugerido: sugeridaId == cat.id,
-          onTap: () => aoSelecionar(cat),
+        return CategoriaQuadrada(
+          categoria: cat,
+          selecionada: estaSelecionada(cat.id),
+          sugerida: sugeridas.contains(cat.id),
+          onTap: () => aoAlternar(cat),
         );
       },
     );
@@ -140,7 +264,7 @@ class ListaCategorias extends StatelessWidget {
 }
 
 // =====================================================
-// FLUXO: OBJETIVO -> CATEGORIA -> DURAÇÃO -> IK AI
+// FLUXO: OBJETIVO -> CATEGORIAS -> (FOCO -> IK AI no modo avançado)
 // =====================================================
 
 class FluxoObjetivosPage extends StatefulWidget {
@@ -153,58 +277,89 @@ class FluxoObjetivosPage extends StatefulWidget {
 class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
   final ControleObjetivos c = ControleObjetivos.instance;
 
-  static const int _totalEtapas = ControleObjetivos.ultimaEtapa + 1;
-
   @override
   void initState() {
     super.initState();
     c.carregarHistorico();
   }
 
-  /// A sessão já está rodando: vai direto para a Home, sem tela de espera
-  /// que gaste o tempo que o usuário escolheu.
+  /// A escolha foi feita: vai direto para a Home, limpando a pilha (a tela
+  /// pode ter sido aberta de dentro da Home, por "Trocar categorias").
   void _irParaHome() {
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),
+      (rota) => false,
     );
   }
 
   bool get _temSugestao {
-    switch (c.etapa) {
-      case 0:
+    switch (c.etapaAtual) {
+      case EtapaFluxo.objetivo:
         return c.sugestaoObjetivoId != null;
-      case 1:
-        return c.sugestaoCategoriaId != null;
-      case 2:
-        return c.sugestaoDuracao != null;
-      default:
+      case EtapaFluxo.categorias:
+        return c.sugestaoCategoriaIds.isNotEmpty;
+      case EtapaFluxo.foco:
+        return c.sugestaoFoco != null;
+      case EtapaFluxo.ikai:
         return c.sugestaoTexto != null;
     }
   }
 
   String get _titulo {
-    switch (c.etapa) {
-      case 0:
+    switch (c.etapaAtual) {
+      case EtapaFluxo.objetivo:
         return 'Qual é o seu objetivo?';
-      case 1:
-        return 'Qual categoria você quer?';
-      case 2:
-        return 'Por quanto tempo?';
-      default:
+      case EtapaFluxo.categorias:
+        return 'O que você quer ver?';
+      case EtapaFluxo.foco:
+        return 'Quer um lembrete de foco?';
+      case EtapaFluxo.ikai:
         return 'Quer contar algo à Ik AI?';
     }
   }
 
   String get _subtitulo {
-    if (c.etapa == ControleObjetivos.ultimaEtapa) {
-      return 'É opcional. Quando o tempo acabar, a Ik AI usa só o que você '
-          'escrever aqui para sugerir no que investir sua energia.';
+    switch (c.etapaAtual) {
+      case EtapaFluxo.ikai:
+        return 'É opcional. Quando o seu tempo do dia acabar, a Ik AI usa só '
+            'o que você escrever aqui para sugerir no que investir sua '
+            'energia.';
+      case EtapaFluxo.foco:
+        return 'É opcional e não bloqueia nada: a Ik AI só avisa quando esse '
+            'tempo passar, para você decidir se faz uma pausa.';
+      case EtapaFluxo.categorias:
+        return 'Escolha uma ou mais categorias (até '
+            '${ControleObjetivos.maxCategorias}). O feed continua com '
+            '$conteudosPorSessao conteúdos, não importa quantas escolher.';
+      case EtapaFluxo.objetivo:
+        return _temSugestao
+            ? 'Sua última escolha aparece como sugestão. '
+                'Toque nela para usar ou escolha outra.'
+            : 'Toque em uma opção para selecionar.';
     }
-    return _temSugestao
-        ? 'Sua última escolha aparece como sugestão. '
-            'Toque nela para usar ou escolha outra.'
-        : 'Toque em uma opção para selecionar.';
+  }
+
+  Widget _cabecalho() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _titulo,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Cores.tituloVerde,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _subtitulo,
+          style: const TextStyle(fontSize: 15, color: Cores.subtitulo),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
   }
 
   @override
@@ -241,31 +396,12 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
                       ),
                       color: const Color(0xFFEDF1F3),
                       child: Text(
-                        'Etapa ${c.etapa + 1} de $_totalEtapas',
+                        'Etapa ${c.etapa + 1} de ${c.etapas.length}',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    if (c.etapa == 0) const CartaoCheckIn(),
-                    const SizedBox(height: 8),
-                    Text(
-                      _titulo,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Cores.tituloVerde,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _subtitulo,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Cores.subtitulo,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Expanded(child: _conteudo()),
+                    Expanded(child: _corpo()),
                     const SizedBox(height: 16),
                     _rodape(),
                   ],
@@ -278,40 +414,100 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
     );
   }
 
-  Widget _conteudo() {
-    switch (c.etapa) {
-      case 0:
+  Widget _corpo() {
+    switch (c.etapaAtual) {
+      case EtapaFluxo.objetivo:
         final lista = todosOsObjetivos;
-        return ListView.separated(
-          itemCount: lista.length,
-          separatorBuilder: (context, indice) => const SizedBox(height: 12),
-          itemBuilder: (context, i) {
-            final o = lista[i];
-            return OpcaoCard(
-              titulo: o.titulo,
-              icone: o.icone,
-              selecionado: c.objetivo?.id == o.id,
-              sugerido: c.sugestaoObjetivoId == o.id,
-              onTap: () => c.selecionarObjetivo(o),
-            );
-          },
+        // Primeira etapa rola inteira: traz o combinado pendente e, para
+        // quem já usa de forma recorrente, os dados de uso.
+        return ListView(
+          children: [
+            const CartaoCheckIn(),
+            const CartaoUsoSemanal(),
+            _cabecalho(),
+            for (final o in lista) ...[
+              OpcaoCard(
+                titulo: o.titulo,
+                icone: o.icone,
+                selecionado: c.objetivo?.id == o.id,
+                sugerido: c.sugestaoObjetivoId == o.id,
+                onTap: () => c.selecionarObjetivo(o),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ],
         );
-      case 1:
-        return ListaCategorias(
-          categorias: c.objetivo!.categorias,
-          selecionadaId: c.categoria?.id,
-          sugeridaId: c.sugestaoCategoriaId,
-          aoSelecionar: c.selecionarCategoria,
+      case EtapaFluxo.categorias:
+        final sugeridas = c.sugestaoCategoriaIds;
+        final semEscolha = c.categorias.isEmpty;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _cabecalho(),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    semEscolha
+                        ? 'Nenhuma categoria escolhida'
+                        : '${c.categorias.length} de '
+                            '${ControleObjetivos.maxCategorias} escolhidas',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Cores.subtitulo,
+                    ),
+                  ),
+                ),
+                if (sugeridas.isNotEmpty &&
+                    !(sugeridas.length == c.categorias.length &&
+                        sugeridas.every(c.temCategoria)))
+                  TextButton.icon(
+                    onPressed: c.aplicarSugestaoCategorias,
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('Usar a última escolha'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: GradeCategorias(
+                categorias: c.objetivo!.categorias,
+                estaSelecionada: c.temCategoria,
+                sugeridas: sugeridas,
+                aoAlternar: (cat) {
+                  final ok = c.alternarCategoria(cat);
+                  if (!ok) {
+                    mostrarAviso(
+                      context,
+                      'No máximo ${ControleObjetivos.maxCategorias} '
+                      'categorias. Desmarque uma para trocar.',
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
         );
-      case 2:
-        return const _PassoDuracao();
-      default:
-        return const _PassoIkAi();
+      case EtapaFluxo.foco:
+        return ListView(
+          children: [
+            _cabecalho(),
+            const _PassoFoco(),
+          ],
+        );
+      case EtapaFluxo.ikai:
+        return ListView(
+          children: [
+            _cabecalho(),
+            const _PassoIkAi(),
+          ],
+        );
     }
   }
 
   Widget _rodape() {
-    final ultima = c.etapa == ControleObjetivos.ultimaEtapa;
+    final ultima = c.etapa == c.ultimaEtapa;
     return Row(
       children: [
         if (c.etapa > 0) ...[
@@ -368,77 +564,40 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
 }
 
 // =====================================================
-// ETAPA 3: DURAÇÃO
+// ETAPA (AVANÇADO): FOCO DA LEITURA
 // =====================================================
 
-/// Opções rápidas + ajuste fino (horas 0 a 3, minutos e segundos).
-class _PassoDuracao extends StatelessWidget {
-  const _PassoDuracao();
-
-  static const List<(int, String)> _rapidas = [
-    (300, '5 min'),
-    (600, '10 min'),
-    (900, '15 min'),
-    (1800, '30 min'),
-    (2700, '45 min'),
-    (3600, '1 h'),
-    (7200, '2 h'),
-  ];
+/// Lembrete opcional de foco. Não limita nada: a meta do dia é o limite
+/// real; este aviso só ajuda a pessoa a perceber o tempo.
+class _PassoFoco extends StatelessWidget {
+  const _PassoFoco();
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ControleObjetivos.instance,
-      builder: (context, _) => _conteudo(),
-    );
-  }
-
-  Widget _conteudo() {
     final c = ControleObjetivos.instance;
-    final total = c.duracaoSegundos;
-    final sugestao = c.sugestaoDuracao;
+    final meta = TempoDiarioService.instance.metaMin;
+    final sugestao = c.sugestaoFoco;
 
-    String? erro;
-    if (total == 0) {
-      erro = 'Escolha uma duração maior que zero.';
-    } else if (total > duracaoMaximaSegundos) {
-      erro = 'O máximo permitido é 3 horas.';
-    }
-
-    return SingleChildScrollView(
-      child: Column(
+    return ListenableBuilder(
+      listenable: c,
+      builder: (context, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE0E5DF)),
             ),
-            child: Column(
-              children: [
-                const Text(
-                  'Duração selecionada',
-                  style: TextStyle(fontSize: 13, color: Cores.subtitulo),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  formatarDuracao(total),
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: erro == null ? Cores.laranja : Colors.red.shade400,
-                  ),
-                ),
-                if (erro != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    erro,
-                    style: TextStyle(fontSize: 13, color: Colors.red.shade400),
-                  ),
-                ],
-              ],
+            child: Text(
+              'Sua meta de hoje é $meta min no Ikai. O lembrete abaixo é '
+              'só dentro dela.',
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: Cores.tituloVerde,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -446,31 +605,33 @@ class _PassoDuracao extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final (segundos, rotulo) in _rapidas)
+              ChoiceChip(
+                label: const Text('Sem lembrete'),
+                selected: c.focoMin == 0,
+                selectedColor: const Color(0xFFE4EFE5),
+                onSelected: (_) => c.definirFoco(0),
+              ),
+              for (final m in ControleObjetivos.opcoesFoco)
                 ChoiceChip(
-                  label: Text(rotulo),
-                  selected: total == segundos,
+                  label: Text('$m min'),
+                  selected: c.focoMin == m,
                   selectedColor: const Color(0xFFE4EFE5),
-                  onSelected: (_) => c.definirDuracaoTotal(segundos),
+                  onSelected: (_) => c.definirFoco(m),
                 ),
             ],
           ),
-          if (sugestao != null && sugestao != total) ...[
+          if (sugestao != null && sugestao != c.focoMin) ...[
             const SizedBox(height: 12),
             InkWell(
-              onTap: c.aplicarSugestaoDuracao,
+              onTap: c.aplicarSugestaoFoco,
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF8FA3B5),
-                    width: 2,
-                  ),
+                  border:
+                      Border.all(color: const Color(0xFF8FA3B5), width: 2),
                 ),
                 child: Row(
                   children: [
@@ -478,8 +639,7 @@ class _PassoDuracao extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Sugestão: ${formatarDuracao(sugestao)} '
-                        '(toque para usar)',
+                        'Sugestão: $sugestao min (toque para usar)',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -492,88 +652,14 @@ class _PassoDuracao extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 20),
-          const Text(
-            'Ajuste fino',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Cores.subtitulo,
-            ),
-          ),
-          _linhaSlider(
-            'Horas',
-            c.horas,
-            3,
-            (v) => c.definirDuracao(v, c.minutos, c.segundos),
-          ),
-          _linhaSlider(
-            'Minutos',
-            c.minutos,
-            59,
-            (v) => c.definirDuracao(c.horas, v, c.segundos),
-          ),
-          _linhaSlider(
-            'Segundos',
-            c.segundos,
-            59,
-            (v) => c.definirDuracao(c.horas, c.minutos, v),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Depois de confirmar, o limite não pode ser estendido. '
-            'Para continuar, você começa uma nova sessão.',
-            style: TextStyle(fontSize: 12, color: Cores.subtitulo),
-          ),
         ],
       ),
-    );
-  }
-
-  Widget _linhaSlider(
-    String rotulo,
-    int valor,
-    int max,
-    ValueChanged<int> aoMudar,
-  ) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 74,
-          child: Text(
-            rotulo,
-            style: const TextStyle(fontSize: 14, color: Cores.tituloVerde),
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            value: valor.toDouble(),
-            min: 0,
-            max: max.toDouble(),
-            divisions: max,
-            activeColor: Cores.laranja,
-            onChanged: (v) => aoMudar(v.round()),
-          ),
-        ),
-        SizedBox(
-          width: 28,
-          child: Text(
-            '$valor',
-            textAlign: TextAlign.end,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Cores.tituloVerde,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
 
 // =====================================================
-// ETAPA 4: IK AI (OPCIONAL)
+// ETAPA (AVANÇADO): IK AI (OPCIONAL)
 // =====================================================
 
 class _PassoIkAi extends StatefulWidget {
@@ -630,8 +716,7 @@ class _PassoIkAiState extends State<_PassoIkAi> {
         final geminiPronto = GeminiService.padrao.configurado;
         final sugestao = c.sugestaoTexto;
 
-        return SingleChildScrollView(
-          child: Column(
+        return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               TextField(
@@ -733,13 +818,14 @@ class _PassoIkAiState extends State<_PassoIkAi> {
                   ),
                   subtitle: Text(
                     geminiPronto
-                        ? 'Só ao final da sessão, o texto acima, o modo e a '
-                            'duração são enviados ao Gemini. Seu nome e '
-                            'e-mail nunca são enviados. Desligado, as '
-                            'sugestões são geradas no seu aparelho.'
-                        : 'O Gemini ainda não foi configurado neste '
-                            'aplicativo. As sugestões serão geradas no '
-                            'seu aparelho.',
+                        ? 'Só quando o seu tempo do dia acabar, o texto '
+                            'acima, o modo e as categorias são enviados ao '
+                            'Gemini. Seu nome e e-mail nunca são enviados. '
+                            'Desligado, as sugestões são geradas no seu '
+                            'aparelho.'
+                        : 'O Gemini ainda não está ativo neste aplicativo '
+                            '(falta a chave de acesso). Por enquanto, as '
+                            'sugestões são geradas no seu aparelho.',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -751,7 +837,6 @@ class _PassoIkAiState extends State<_PassoIkAi> {
                 style: TextStyle(fontSize: 12, color: Cores.subtitulo),
               ),
             ],
-          ),
         );
       },
     );

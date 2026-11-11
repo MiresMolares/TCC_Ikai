@@ -28,6 +28,27 @@ class Mensagem {
 
 typedef AoCombinar = void Function(Atividade atividade, String quando);
 
+/// O que a conversa de FIM DO DIA pode fazer no app. O chat só conversa;
+/// quem muda o estado do dia é quem implementa isto (veja chat_fabrica.dart).
+abstract class AcoesFimDoDia {
+  /// A pessoa pediu para encerrar antes de o tempo acabar.
+  bool get voluntario;
+  bool get podeProrrogar;
+  int get prorrogacoesRestantes;
+  int get maxProrrogacoes;
+  List<int> get opcoesProrrogacao;
+
+  /// Ex.: "45 min de 45 min".
+  String get resumoDeUso;
+
+  bool registrarAprendizado(String texto);
+  bool prorrogar(int minutos, String motivo);
+  bool voltarAoApp();
+  void encerrarPorHoje();
+}
+
+enum _EtapaFim { nenhuma, aprendi, motivo, tempo }
+
 /// Controlador da conversa com a Ik AI (sem widgets, testável).
 ///
 /// Garantias:
@@ -49,6 +70,7 @@ class ChatIkAi extends ChangeNotifier {
     this.rotacao = 0,
     bool usarGemini = false,
     this.aoCombinar,
+    this.fimDoDia,
   })  : _gemini = gemini ?? GeminiService.padrao,
         _usarGemini = usarGemini;
 
@@ -56,6 +78,14 @@ class ChatIkAi extends ChangeNotifier {
   static const int limiteChamadasIa = 12;
   static const String chipRepetir = 'Pode repetir as ideias';
   static const String chipDescansar = 'Vou descansar um pouco';
+
+  // Conversa de fim do dia.
+  static const String chipAprendi = 'Contar o que aprendi';
+  static const String chipContinuar = 'Quero continuar';
+  static const String chipVoltar = 'Voltar ao app';
+  static const String chipIdeias = 'Ideias longe da tela';
+  static const String chipEncerrar = 'Encerrar por hoje';
+  static const String chipMudei = 'Mudei de ideia';
 
   final EstadoConversa estado;
   final String? nome;
@@ -65,6 +95,10 @@ class ChatIkAi extends ChangeNotifier {
   final int minutosUsados;
   final int rotacao;
   final AoCombinar? aoCombinar;
+
+  /// Não nulo = esta é a conversa de fim do dia (o tempo acabou ou a pessoa
+  /// pediu para encerrar).
+  final AcoesFimDoDia? fimDoDia;
   final GeminiService _gemini;
 
   final List<Mensagem> _mensagens = [];
@@ -77,6 +111,8 @@ class ChatIkAi extends ChangeNotifier {
   int _chamadasIa = 0;
   bool _iniciada = false;
   bool _fechado = false;
+  _EtapaFim _etapaFim = _EtapaFim.nenhuma;
+  String _motivoFim = '';
 
   /// Motivo de a última resposta ter vindo do motor local (para depuração).
   String? motivoLocal;
@@ -113,6 +149,11 @@ class ChatIkAi extends ChangeNotifier {
   void iniciar() {
     if (_iniciada) return;
     _iniciada = true;
+    if (fimDoDia != null) {
+      _adicionarIa(_aberturaDoFim());
+      _avisar();
+      return;
+    }
     final r = MotorIkAi.abertura(
       estado,
       nome: nome,
@@ -124,10 +165,17 @@ class ChatIkAi extends ChangeNotifier {
     _avisar();
   }
 
-  void _adicionarIa(RespostaIkAi r, {String? texto, List<Atividade>? opcoes}) {
+  void _adicionarIa(
+    RespostaIkAi r, {
+    String? texto,
+    List<Atividade>? opcoes,
+    List<String>? chips,
+  }) {
     final ops = opcoes ?? r.opcoes;
     final fala = texto ?? r.texto;
-    _mensagens.add(Mensagem(Autor.ia, fala, opcoes: ops, chips: r.chips));
+    _mensagens.add(
+      Mensagem(Autor.ia, fala, opcoes: ops, chips: chips ?? r.chips),
+    );
     _turnos.add(TurnoConversa(daIa: true, texto: fala));
     if (ops.isNotEmpty) {
       _ultimasOpcoes = ops;
@@ -141,6 +189,174 @@ class ChatIkAi extends ChangeNotifier {
     _mensagens.add(Mensagem(Autor.usuario, texto));
     _turnos.add(TurnoConversa(daIa: false, texto: texto));
   }
+
+  // ---------- Conversa de fim do dia ----------
+
+  List<String> _chipsFim() => [
+        chipAprendi,
+        fimDoDia!.voluntario ? chipVoltar : chipContinuar,
+        chipIdeias,
+        chipEncerrar,
+      ];
+
+  /// Chips da conversa de ideias + os caminhos de saída do fim do dia.
+  List<String> _comChipsFim(List<String> chips) {
+    final f = fimDoDia;
+    if (f == null) return chips;
+    final saida = <String>[
+      f.voluntario ? chipVoltar : chipContinuar,
+      chipEncerrar,
+    ];
+    return [
+      ...chips.where((c) => !saida.contains(c)).take(4),
+      ...saida,
+    ];
+  }
+
+  RespostaIkAi _aberturaDoFim() {
+    final f = fimDoDia!;
+    final quem = (nome == null || nome!.isEmpty) ? '' : '$nome, ';
+    final texto = f.voluntario
+        ? '${quem}você quer encerrar o dia com ${f.resumoDeUso} de uso. '
+            'Antes, quer contar o que levou daqui?'
+        : '${quem.isEmpty ? 'Seu' : '${quem}seu'} tempo de hoje no Ikai '
+            'acabou: ${f.resumoDeUso}. O que você quer fazer agora?';
+    return RespostaIkAi(texto, const [], _chipsFim());
+  }
+
+  /// Trata os passos do fim do dia. Devolve true se tratou a mensagem.
+  bool _tratarFim(String texto) {
+    final f = fimDoDia!;
+
+    if (texto == chipEncerrar) {
+      _etapaFim = _EtapaFim.nenhuma;
+      _adicionarIa(const RespostaIkAi(
+        'Combinado. Seu dia no Ikai fica por aqui. Até amanhã.',
+        [],
+        [],
+      ));
+      _encerrada = true;
+      f.encerrarPorHoje();
+      return true;
+    }
+
+    if (texto == chipVoltar && f.voluntario) {
+      _etapaFim = _EtapaFim.nenhuma;
+      _adicionarIa(const RespostaIkAi('Certo, pode voltar.', [], []));
+      _encerrada = true;
+      f.voltarAoApp();
+      return true;
+    }
+
+    if (texto == chipAprendi) {
+      _etapaFim = _EtapaFim.aprendi;
+      _adicionarIa(const RespostaIkAi(
+        'Conte com as suas palavras: o que você aprendeu ou levou daqui hoje?',
+        [],
+        [],
+      ));
+      return true;
+    }
+
+    if (texto == chipContinuar && !f.voluntario) {
+      if (!f.podeProrrogar) {
+        _etapaFim = _EtapaFim.nenhuma;
+        _adicionarIa(RespostaIkAi(
+          'Você já estendeu seu tempo ${f.maxProrrogacoes} vezes '
+          'hoje, que é o limite. O que você prefere?',
+          const [],
+          [chipAprendi, chipIdeias, chipEncerrar],
+        ));
+        return true;
+      }
+      _etapaFim = _EtapaFim.motivo;
+      _adicionarIa(const RespostaIkAi(
+        'Me conte, em uma frase: por que você quer continuar?',
+        [],
+        [],
+      ));
+      return true;
+    }
+
+    if (texto == chipIdeias) {
+      _etapaFim = _EtapaFim.nenhuma;
+      final r = MotorIkAi.abertura(
+        estado,
+        nome: nome,
+        ocasiao: 'fim',
+        rotacao: rotacao + _turnos.length,
+      );
+      _adicionarIa(
+        r,
+        texto: 'Aqui estão ideias para depois daqui. Me conte onde está, '
+            'quanto tempo tem e como está a energia, e eu ajusto.',
+        chips: _comChipsFim(r.chips),
+      );
+      return true;
+    }
+
+    switch (_etapaFim) {
+      case _EtapaFim.aprendi:
+        if (!f.registrarAprendizado(texto)) return false;
+        _etapaFim = _EtapaFim.nenhuma;
+        _adicionarIa(RespostaIkAi(
+          'Anotei: "$texto". Isso fica guardado só no seu aparelho.',
+          const [],
+          _chipsFimSemAprendi(),
+        ));
+        return true;
+
+      case _EtapaFim.motivo:
+        if (texto.length < 3) {
+          _adicionarIa(const RespostaIkAi(
+            'Pode escrever um pouco mais? Uma frase já basta.',
+            [],
+            [],
+          ));
+          return true;
+        }
+        _motivoFim = texto;
+        _etapaFim = _EtapaFim.tempo;
+        final restam = f.prorrogacoesRestantes;
+        _adicionarIa(RespostaIkAi(
+          'Entendi: "$texto". Quanto tempo a mais você quer? Você ainda pode '
+          'estender $restam ${restam == 1 ? 'vez' : 'vezes'} hoje.',
+          const [],
+          [for (final m in f.opcoesProrrogacao) '$m min', chipMudei],
+        ));
+        return true;
+
+      case _EtapaFim.tempo:
+        if (texto == chipMudei) {
+          _etapaFim = _EtapaFim.nenhuma;
+          _adicionarIa(RespostaIkAi(
+            'Tudo bem. O que você prefere?',
+            const [],
+            _chipsFimSemAprendi(),
+          ));
+          return true;
+        }
+        final m = int.tryParse(texto.replaceAll(RegExp(r'[^0-9]'), ''));
+        if (m != null && f.prorrogar(m, _motivoFim)) {
+          _etapaFim = _EtapaFim.nenhuma;
+          _adicionarIa(RespostaIkAi('Combinado: mais $m min.', const [], const []));
+          _encerrada = true;
+          return true;
+        }
+        _adicionarIa(RespostaIkAi(
+          'Escolha uma das opções de tempo, ou diga que mudou de ideia.',
+          const [],
+          [for (final m in f.opcoesProrrogacao) '$m min', chipMudei],
+        ));
+        return true;
+
+      case _EtapaFim.nenhuma:
+        return false;
+    }
+  }
+
+  List<String> _chipsFimSemAprendi() =>
+      _chipsFim().where((c) => c != chipAprendi).toList();
 
   /// O usuário tocou em "Vou fazer isso".
   void escolher(Atividade a) {
@@ -164,7 +380,14 @@ class ChatIkAi extends ChangeNotifier {
     // 1) Sofrimento sério: encaminha para ajuda humana, sem IA externa.
     if (sinalDeCrise(texto)) {
       _aguardandoQuando = null;
-      _adicionarIa(MotorIkAi.cuidado());
+      _etapaFim = _EtapaFim.nenhuma;
+      _adicionarIa(MotorIkAi.cuidado(), chips: fimDoDia == null ? null : _chipsFim());
+      _avisar();
+      return;
+    }
+
+    // 1b) Passos da conversa de fim do dia.
+    if (fimDoDia != null && _aguardandoQuando == null && _tratarFim(texto)) {
       _avisar();
       return;
     }
@@ -176,8 +399,16 @@ class ChatIkAi extends ChangeNotifier {
       if (!i.querOutras && !i.semIdeia) {
         _aguardandoQuando = null;
         aoCombinar?.call(pendente, texto);
-        _adicionarIa(MotorIkAi.confirmarCombinado(pendente, texto));
-        _encerrada = true;
+        if (fimDoDia != null) {
+          // No fim do dia a conversa continua: ainda falta decidir o resto.
+          _adicionarIa(
+            MotorIkAi.confirmarCombinado(pendente, texto),
+            chips: _chipsFim(),
+          );
+        } else {
+          _adicionarIa(MotorIkAi.confirmarCombinado(pendente, texto));
+          _encerrada = true;
+        }
         _avisar();
         return;
       }
@@ -186,14 +417,18 @@ class ChatIkAi extends ChangeNotifier {
 
     // 3) Respostas rápidas especiais.
     if (texto == chipDescansar) {
-      _adicionarIa(const RespostaIkAi(
-        'Boa ideia. Deixe o celular longe, olhe pela janela ou beba água '
-        'devagar por alguns minutos. Quando voltar, eu pergunto como você '
-        'está.',
-        [],
-        [],
-      ));
-      _encerrada = true;
+      const fala = 'Boa ideia. Deixe o celular longe, olhe pela janela ou beba '
+          'água devagar por alguns minutos.';
+      if (fimDoDia != null) {
+        _adicionarIa(const RespostaIkAi(fala, [], []), chips: _chipsFim());
+      } else {
+        _adicionarIa(const RespostaIkAi(
+          '$fala Quando voltar, eu pergunto como você está.',
+          [],
+          [],
+        ));
+        _encerrada = true;
+      }
       _avisar();
       return;
     }
@@ -241,6 +476,7 @@ class ChatIkAi extends ChangeNotifier {
           local,
           texto: ia.texto.isNotEmpty ? ia.texto : local.texto,
           opcoes: completas,
+          chips: _comChipsFim(local.chips),
         );
         _avisar();
         return;
@@ -253,7 +489,7 @@ class ChatIkAi extends ChangeNotifier {
     }
 
     ultimaViaGemini = false;
-    _adicionarIa(local);
+    _adicionarIa(local, chips: _comChipsFim(local.chips));
     _avisar();
   }
 

@@ -1,20 +1,27 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
-import '../services/chat_fabrica.dart';
-import '../services/chat_ik_ai.dart';
+import '../services/auth_service.dart';
+import '../services/tempo_diario.dart';
+import '../widgets/botao_ik_flutuante.dart';
 import '../widgets/estilo.dart';
-import '../widgets/ik_ai_chat_view.dart';
-import 'controle_objetivo.dart';
+import '../widgets/navegador.dart';
+import '../pages_home/ik_ai_page.dart';
+import 'tela_fim_do_dia.dart';
 
 /// Fica ACIMA do Navigator (ver MaterialApp.builder em main.dart).
 ///
-/// Quando a sessão expira, o Navigator inteiro sai da árvore e entra a
-/// [TelaBloqueio]. Assim nenhuma tela, diálogo ou menu aberto sobrevive ao
-/// fim do tempo, e não existe botão "voltar" para burlar o limite.
-/// Ao iniciar nova sessão o Navigator é recriado do zero.
+/// Cuida de quatro coisas ligadas ao tempo do dia:
+///  1. Conta o tempo só com o app à frente (pausa em segundo plano).
+///  2. Mostra os avisos da Ik AI (metade da meta, lembrete de foco) sem
+///     bloquear nada.
+///  3. Quando a meta acaba, troca o app pela conversa de fim de tempo
+///     ([TelaFimDoDia]); quando a pessoa encerra o dia, por [TelaEncerrado].
+///  4. Mantém o botão flutuante da Ik AI sempre à mão.
+///
+/// Como está acima do Navigator, não há Overlay nem Navigator aqui: os
+/// widgets daqui só usam Material, nunca Tooltip, diálogo ou menu.
 class SessaoGuard extends StatefulWidget {
   final Widget child;
 
@@ -26,7 +33,7 @@ class SessaoGuard extends StatefulWidget {
 
 class _SessaoGuardState extends State<SessaoGuard>
     with WidgetsBindingObserver {
-  final ControleObjetivos _c = ControleObjetivos.instance;
+  final TempoDiarioService _t = TempoDiarioService.instance;
 
   @override
   void initState() {
@@ -40,220 +47,160 @@ class _SessaoGuardState extends State<SessaoGuard>
     super.dispose();
   }
 
-  /// Timers pausam em segundo plano; ao voltar, o relógio é conferido na hora.
+  /// Em segundo plano o tempo não conta; ao voltar, a contagem retoma.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _c.verificar();
+    if (state == AppLifecycleState.resumed) {
+      if (AuthService.instance.logado && _t.metaDefinida) {
+        _t.iniciarContagem();
+      }
+    } else {
+      _t.pausarContagem();
+    }
   }
+
+  void _abrirIkAi() => abrirIkAi();
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _c,
+      listenable: Listenable.merge([
+        _t,
+        AuthService.instance,
+        NavegadorIk.observador.botaoPermitido,
+      ]),
       builder: (context, _) {
-        if (_c.estado == EstadoSessao.expirada) {
-          return const TelaBloqueio();
+        if (AuthService.instance.logado) {
+          // O Navigator sai da árvore: nenhuma tela, diálogo ou menu aberto
+          // sobrevive ao fim do tempo, e ele volta do zero depois.
+          if (_t.fase == FaseDoDia.fimDeTempo) {
+            NavegadorIk.observador.reiniciar();
+            return const TelaFimDoDia();
+          }
+          if (_t.fase == FaseDoDia.encerrado) {
+            NavegadorIk.observador.reiniciar();
+            return const TelaEncerrado();
+          }
         }
-        return widget.child;
+
+        final logado = AuthService.instance.logado;
+        final tecladoAberto = MediaQuery.of(context).viewInsets.bottom > 0;
+        final mostrarBotao = logado &&
+            _t.metaDefinida &&
+            NavegadorIk.observador.botaoPermitido.value &&
+            !tecladoAberto;
+        final aviso = logado ? _t.aviso : null;
+
+        return Stack(
+          children: [
+            Positioned.fill(child: widget.child),
+            if (aviso != null)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _BannerIk(
+                  key: ValueKey('${aviso.tipo}-${aviso.texto}'),
+                  aviso: aviso,
+                  aoConversar: _abrirIkAi,
+                ),
+              ),
+            if (mostrarBotao)
+              Positioned.fill(child: BotaoIkFlutuante(aoTocar: _abrirIkAi)),
+          ],
+        );
       },
     );
   }
 }
 
-/// Mostra o tempo restante em formato de relógio (mm:ss ou h:mm:ss).
-class TempoRestante extends StatelessWidget {
-  final TextStyle? estilo;
+/// Aviso da Ik AI no topo da tela: some sozinho depois de alguns segundos,
+/// e a pessoa pode dispensar ou conversar. Nunca bloqueia o app.
+class _BannerIk extends StatefulWidget {
+  final AvisoIk aviso;
+  final VoidCallback aoConversar;
 
-  const TempoRestante({super.key, this.estilo});
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<Duration>(
-      valueListenable: ControleObjetivos.instance.restante,
-      builder: (context, restante, _) => Text(
-        formatarRelogio(restante),
-        style: estilo ??
-            const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Cores.tituloVerde,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-      ),
-    );
-  }
-}
-
-/// Tela exibida quando a sessão acaba: a pessoa é levada à conversa com a
-/// Ik AI, que oferece várias opções reais do que fazer longe da tela e
-/// aceita o que ela disser (por exemplo, "não estou com meu livro").
-///
-/// A pausa entre sessões é obrigatória: o botão de nova sessão só abre
-/// quando a contagem chega a zero.
-///
-/// Esta tela fica ACIMA do Navigator, por isso tem o próprio Overlay (o campo
-/// de texto precisa de um) e não abre diálogos nem menus.
-class TelaBloqueio extends StatefulWidget {
-  const TelaBloqueio({super.key});
+  const _BannerIk({super.key, required this.aviso, required this.aoConversar});
 
   @override
-  State<TelaBloqueio> createState() => _TelaBloqueioState();
+  State<_BannerIk> createState() => _BannerIkState();
 }
 
-class _TelaBloqueioState extends State<TelaBloqueio> {
-  late final ChatIkAi _chat;
+class _BannerIkState extends State<_BannerIk> {
   Timer? _timer;
-  ResumoSessao? _resumo;
 
   @override
   void initState() {
     super.initState();
-    final c = ControleObjetivos.instance;
-    _resumo = c.ultimoResumo;
-    final r = _resumo;
-    _chat = novoChatIkAi(
-      ocasiao: 'fim',
-      resumo: r,
-      minutosUsados: r == null ? 0 : (r.usadoSegundos / 60).round(),
-    );
-    c.atualizarPausa();
-    _timer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) => c.atualizarPausa(),
-    );
+    _timer = Timer(const Duration(seconds: 20), _dispensar);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _chat.dispose();
     super.dispose();
   }
 
+  void _dispensar() => TempoDiarioService.instance.consumirAviso();
+
   @override
   Widget build(BuildContext context) {
-    final r = _resumo;
-    final peloUsuario = r?.encerradaPeloUsuario ?? false;
-
-    return PopScope(
-      canPop: false,
-      child: Overlay.wrap(
-        child: Scaffold(
-          backgroundColor: Cores.fundoEtapas,
-          body: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Column(
-                  children: [
-                    _cabecalho(r, peloUsuario),
-                    Expanded(child: IkAiChatView(chat: _chat)),
-                    _rodape(),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _cabecalho(ResumoSessao? r, bool peloUsuario) {
-    final detalhe = r == null
-        ? 'Bom descanso da tela.'
-        : 'Você usou ${formatarDuracao(r.usadoSegundos)} em '
-            '${r.categoriaTitulo}.';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.hourglass_bottom_rounded,
-            size: 36,
-            color: Cores.laranja,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Material(
+          color: Cores.tituloVerde,
+          elevation: 8,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  peloUsuario ? 'Sessão encerrada' : 'Seu tempo acabou',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Cores.tituloVerde,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.auto_awesome, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        widget.aviso.texto,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  detalhe,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Cores.subtitulo,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        _dispensar();
+                        widget.aoConversar();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Falar com a Ik AI'),
+                    ),
+                    TextButton(
+                      onPressed: _dispensar,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Entendi'),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _rodape() {
-    final c = ControleObjetivos.instance;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Cores.bordaQuente)),
-      ),
-      child: ValueListenableBuilder<Duration>(
-        valueListenable: c.pausaRestante,
-        builder: (context, pausa, _) {
-          final emPausa = pausa > Duration.zero;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: emPausa ? null : c.iniciarNovaSessao,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Cores.laranja,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    emPausa
-                        ? 'Nova sessão em ${formatarRelogio(pausa)}'
-                        : 'Iniciar nova sessão',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ),
-              if (emPausa)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    'Uma pausa entre as sessões ajuda a fazer algo fora da '
-                    'tela de verdade.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Cores.subtitulo),
-                  ),
-                ),
-            ],
-          );
-        },
+        ),
       ),
     );
   }

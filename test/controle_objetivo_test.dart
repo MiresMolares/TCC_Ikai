@@ -1,299 +1,271 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ikai/core/selecao_salva.dart';
 import 'package:ikai/pages_configurar/controle_objetivo.dart';
 import 'package:ikai/pages_configurar/objetivo_estudo.dart';
 import 'package:ikai/pages_configurar/objetivo_leitura.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  late DateTime parede;
-  late Duration mono;
+  late DateTime agora;
+  late bool avancado;
   late ControleObjetivos c;
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    parede = DateTime(2026, 11, 4, 10);
-    mono = Duration.zero;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    agora = DateTime(2026, 11, 4, 10);
+    avancado = false;
     c = ControleObjetivos.paraTeste(
-      agora: () => parede,
-      monotonico: () => mono,
+      avancado: () => avancado,
+      agora: () => agora,
     );
   });
 
-  // Cancela o timer da sessão ao fim de cada teste.
-  tearDown(() => c.reiniciarSessao());
+  tearDown(() async {
+    c.reiniciarSessao();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  });
 
-  void passar(Duration d) {
-    parede = parede.add(d);
-    mono += d;
-  }
-
-  /// Percorre as 4 etapas escolhendo Ler > primeira categoria.
-  void escolherAteUltimaEtapa({int segundos = 600}) {
+  void escolherObjetivoECategorias(int quantas) {
     c.selecionarObjetivo(objetivoLeitura);
     c.avancar();
-    c.selecionarCategoria(objetivoLeitura.categorias.first);
-    c.avancar();
-    c.definirDuracaoTotal(segundos);
-    c.avancar();
+    for (final cat in objetivoLeitura.categorias.take(quantas)) {
+      c.alternarCategoria(cat);
+    }
   }
 
-  group('Escolhas', () {
+  group('Etapas por modo', () {
+    test('iniciante tem 2 etapas: objetivo e categorias', () {
+      expect(c.etapas, [EtapaFluxo.objetivo, EtapaFluxo.categorias]);
+      expect(c.ultimaEtapa, 1);
+    });
+
+    test('avançado tem 4 etapas, com foco e Ik AI', () {
+      avancado = true;
+      expect(c.etapas.length, 4);
+      expect(c.etapas.contains(EtapaFluxo.foco), isTrue);
+      expect(c.etapas.last, EtapaFluxo.ikai);
+    });
+
     test('não avança sem escolher o objetivo', () {
       expect(c.podeAvancar, isFalse);
       c.avancar();
-      expect(c.etapa, equals(0));
+      expect(c.etapa, 0);
     });
 
-    test('não avança da categoria sem escolher categoria', () {
+    test('não avança da categoria sem escolher nenhuma', () {
       c.selecionarObjetivo(objetivoLeitura);
       c.avancar();
-      expect(c.etapa, equals(1));
+      expect(c.etapa, 1);
       expect(c.podeAvancar, isFalse);
+    });
+
+    test('voltar na primeira etapa não faz nada', () {
+      c.voltar();
+      expect(c.etapa, 0);
+    });
+  });
+
+  group('Várias categorias', () {
+    test('escolhe e desmarca mais de uma', () {
+      escolherObjetivoECategorias(3);
+      expect(c.categorias.length, 3);
+      expect(c.podeAvancar, isTrue);
+      c.alternarCategoria(objetivoLeitura.categorias.first);
+      expect(c.categorias.length, 2);
+      expect(c.temCategoria(objetivoLeitura.categorias.first.id), isFalse);
+    });
+
+    test('respeita o limite máximo', () {
+      escolherObjetivoECategorias(ControleObjetivos.maxCategorias);
+      final extra = objetivoLeitura.categorias[ControleObjetivos.maxCategorias];
+      expect(c.alternarCategoria(extra), isFalse);
+      expect(c.categorias.length, ControleObjetivos.maxCategorias);
     });
 
     test('categoria de outro objetivo é ignorada', () {
       c.selecionarObjetivo(objetivoLeitura);
-      c.selecionarCategoria(objetivoEstudo.categorias.first);
-      expect(c.categoria, isNull);
+      c.alternarCategoria(objetivoEstudo.categorias.first);
+      expect(c.categorias, isEmpty);
     });
 
-    test('trocar de objetivo invalida a categoria escolhida', () {
-      c.selecionarObjetivo(objetivoLeitura);
-      c.selecionarCategoria(objetivoLeitura.categorias.first);
+    test('trocar de objetivo limpa as categorias', () {
+      escolherObjetivoECategorias(2);
       c.selecionarObjetivo(objetivoEstudo);
-      expect(c.categoria, isNull);
+      expect(c.categorias, isEmpty);
     });
 
-    test('duração zero ou acima de 3 horas bloqueia', () {
+    test('categoriaIds e títulos refletem a escolha', () {
+      escolherObjetivoECategorias(2);
+      expect(c.categoriaIds.length, 2);
+      expect(c.titulosDasCategorias, contains(', '));
+    });
+  });
+
+  group('Confirmação', () {
+    test('iniciante confirma na etapa de categorias', () async {
+      escolherObjetivoECategorias(2);
+      expect(await c.confirmar(), isTrue);
+      expect(c.estado, EstadoSessao.ativa);
+    });
+
+    test('avançado só confirma na última etapa', () async {
+      avancado = true;
+      escolherObjetivoECategorias(1);
+      expect(await c.confirmar(), isFalse);
+      c.avancar(); // foco
+      c.avancar(); // ikai
+      expect(await c.confirmar(), isTrue);
+    });
+
+    test('sem categoria não confirma', () async {
       c.selecionarObjetivo(objetivoLeitura);
       c.avancar();
-      c.selecionarCategoria(objetivoLeitura.categorias.first);
-      c.avancar();
-      expect(c.etapa, equals(2));
-      expect(c.podeAvancar, isFalse); // 0s
-      c.definirDuracao(3, 0, 1);
-      expect(c.podeAvancar, isFalse); // 3h e 1s
-      c.definirDuracao(3, 0, 0);
-      expect(c.podeAvancar, isTrue); // 3h exatas
+      expect(await c.confirmar(), isFalse);
+      expect(c.estado, EstadoSessao.naoIniciada);
     });
 
-    test('opções rápidas preenchem horas, minutos e segundos', () {
-      c.definirDuracaoTotal(3725);
-      expect(c.horas, equals(1));
-      expect(c.minutos, equals(2));
-      expect(c.segundos, equals(5));
-      expect(c.duracaoSegundos, equals(3725));
+    test('iniciante nunca guarda foco nem texto da Ik AI', () async {
+      escolherObjetivoECategorias(1);
+      c.definirTextoIkAi('quero relaxar');
+      c.definirFoco(15);
+      await c.confirmar();
+      expect(c.textoIkAi, isEmpty);
+      expect(c.focoMin, 0);
+      expect(c.permitirGemini, isFalse);
     });
 
-    test('a etapa da Ik AI é opcional', () {
-      escolherAteUltimaEtapa();
-      expect(c.etapa, equals(ControleObjetivos.ultimaEtapa));
-      expect(c.textoIkAi, equals(''));
-      expect(c.podeAvancar, isTrue);
+    test('depois de ativa, escolhas ficam travadas', () async {
+      escolherObjetivoECategorias(1);
+      await c.confirmar();
+      c.selecionarObjetivo(objetivoEstudo);
+      expect(c.objetivo?.id, objetivoLeitura.id);
+      c.alternarCategoria(objetivoLeitura.categorias[1]);
+      expect(c.categorias.length, 1);
+    });
+  });
+
+  group('Modo avançado: foco e texto', () {
+    setUp(() => avancado = true);
+
+    test('foco só aceita opções válidas', () {
+      c.definirFoco(7);
+      expect(c.focoMin, 0);
+      c.definirFoco(20);
+      expect(c.focoMin, 20);
+      c.definirFoco(0);
+      expect(c.focoMin, 0);
     });
 
-    test('permissão do Gemini exige texto e some se o texto for apagado', () {
-      c.definirPermissaoGemini(true);
-      expect(c.permitirGemini, isFalse); // sem texto
-      c.definirTextoIkAi('estou lendo um livro');
+    test('texto é limitado e Gemini exige texto', () {
+      c.definirTextoIkAi('a' * 500);
+      expect(c.textoIkAi.length, ControleObjetivos.limiteTextoIkAi);
       c.definirPermissaoGemini(true);
       expect(c.permitirGemini, isTrue);
       c.definirTextoIkAi('   ');
       expect(c.permitirGemini, isFalse);
     });
 
-    test('texto da Ik AI respeita o limite de caracteres', () {
-      c.definirTextoIkAi('a' * 500);
-      expect(c.textoIkAi.length, equals(ControleObjetivos.limiteTextoIkAi));
-    });
-  });
-
-  group('Sessão e tempo', () {
-    test('só confirma na última etapa', () async {
-      c.selecionarObjetivo(objetivoLeitura);
-      c.avancar();
-      c.selecionarCategoria(objetivoLeitura.categorias.first);
-      c.avancar();
-      c.definirDuracaoTotal(600);
-      expect(await c.confirmar(), isFalse); // ainda na etapa 2
-      expect(c.estado, equals(EstadoSessao.naoIniciada));
-    });
-
-    test('confirmar inicia a sessão com o restante igual à duração', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      expect(await c.confirmar(), isTrue);
-      expect(c.estado, equals(EstadoSessao.ativa));
-      expect(c.restante.value, equals(const Duration(minutes: 10)));
-    });
-
-    test('o tempo corre e a sessão expira exatamente no limite', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      await c.confirmar();
-
-      passar(const Duration(minutes: 9, seconds: 59));
-      c.verificar();
-      expect(c.estado, equals(EstadoSessao.ativa));
-      expect(c.restante.value, equals(const Duration(seconds: 1)));
-
-      passar(const Duration(seconds: 1));
-      c.verificar();
-      expect(c.estado, equals(EstadoSessao.expirada));
-      expect(c.restante.value, equals(Duration.zero));
-    });
-
-    test('depois de expirar não há como continuar nem iniciar outra', () async {
-      escolherAteUltimaEtapa(segundos: 60);
-      await c.confirmar();
-      passar(const Duration(minutes: 2));
-      c.verificar();
-      expect(c.estado, equals(EstadoSessao.expirada));
-
-      expect(await c.confirmar(), isFalse);
-      c.selecionarObjetivo(objetivoEstudo);
-      expect(c.objetivo?.id, equals(objetivoLeitura.id)); // escolha ignorada
-      c.verificar();
-      expect(c.estado, equals(EstadoSessao.expirada));
-    });
-
-    test('voltar a hora do celular não prolonga a sessão', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      await c.confirmar();
-      mono = const Duration(minutes: 10);
-      parede = parede.subtract(const Duration(hours: 2));
-      c.verificar();
-      expect(c.estado, equals(EstadoSessao.expirada));
-    });
-
-    test('aparelho dormindo também consome o tempo', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      await c.confirmar();
-      parede = parede.add(const Duration(minutes: 30));
-      c.verificar(); // equivale a voltar do segundo plano
-      expect(c.estado, equals(EstadoSessao.expirada));
-    });
-
-    test('não inicia uma segunda sessão enquanto há uma ativa', () async {
-      escolherAteUltimaEtapa();
-      expect(await c.confirmar(), isTrue);
-      expect(await c.confirmar(), isFalse);
-    });
-
-    test('escolhas ficam travadas durante a sessão', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      await c.confirmar();
-      c.definirDuracaoTotal(5);
-      expect(c.duracaoSegundos, equals(600));
-    });
-
-    test('encerrar antes da hora guarda o resumo', () async {
-      escolherAteUltimaEtapa(segundos: 600);
-      c.definirTextoIkAi('treinando em casa');
+    test('Gemini não liga sem texto', () {
       c.definirPermissaoGemini(true);
-      await c.confirmar();
-      passar(const Duration(minutes: 2));
-      c.encerrarAgora();
-
-      expect(c.estado, equals(EstadoSessao.expirada));
-      final r = c.ultimoResumo!;
-      expect(r.encerradaPeloUsuario, isTrue);
-      expect(r.usadoSegundos, equals(120));
-      expect(r.duracaoPlanejadaSegundos, equals(600));
-      expect(r.objetivoTitulo, equals('Ler'));
-      expect(r.textoIkAi, equals('treinando em casa'));
-      expect(r.permitiuEnvioGemini, isTrue);
-    });
-
-    test('expiração natural marca que não foi o usuário', () async {
-      escolherAteUltimaEtapa(segundos: 30);
-      await c.confirmar();
-      passar(const Duration(seconds: 31));
-      c.verificar();
-      final r = c.ultimoResumo!;
-      expect(r.encerradaPeloUsuario, isFalse);
-      expect(r.usadoSegundos, equals(30)); // nunca passa do planejado
-    });
-
-    test('reiniciar libera uma nova sessão e zera tudo', () async {
-      escolherAteUltimaEtapa();
-      c.definirTextoIkAi('algo');
-      await c.confirmar();
-      c.encerrarAgora();
-      c.reiniciarSessao();
-
-      expect(c.estado, equals(EstadoSessao.naoIniciada));
-      expect(c.etapa, equals(0));
-      expect(c.objetivo, isNull);
-      expect(c.categoria, isNull);
-      expect(c.duracaoSegundos, equals(0));
-      expect(c.textoIkAi, equals(''));
       expect(c.permitirGemini, isFalse);
-      expect(c.ultimoResumo, isNull);
-
-      escolherAteUltimaEtapa(segundos: 120);
-      expect(await c.confirmar(), isTrue);
-      expect(c.restante.value, equals(const Duration(minutes: 2)));
     });
   });
 
-  group('Histórico (só sugestão, nunca aplicado sozinho)', () {
-    test('última escolha vira sugestão, mas as escolhas começam vazias',
-        () async {
-      escolherAteUltimaEtapa(segundos: 900);
-      c.definirTextoIkAi('lendo Capitães da Areia');
+  group('Histórico como sugestão', () {
+    test('sugere, mas não aplica sozinho', () async {
+      avancado = true;
+      escolherObjetivoECategorias(2);
+      c.definirFoco(30);
+      c.avancar();
+      c.avancar();
+      c.definirTextoIkAi('ler antes de dormir');
       await c.confirmar();
       await Future<void>.delayed(const Duration(milliseconds: 20));
       c.reiniciarSessao();
 
       c.descartarHistoricoEmMemoria();
       await c.carregarHistorico();
-
-      expect(c.sugestaoObjetivoId, equals('ler'));
-      expect(c.sugestaoDuracao, equals(900));
-      expect(c.sugestaoTexto, equals('lendo Capitães da Areia'));
-      // Nada foi aplicado:
       expect(c.objetivo, isNull);
-      expect(c.duracaoSegundos, equals(0));
-      expect(c.textoIkAi, equals(''));
+      expect(c.sugestaoObjetivoId, objetivoLeitura.id);
+      expect(c.sugestaoFoco, 30);
+      expect(c.sugestaoTexto, 'ler antes de dormir');
 
-      // Só vira escolha quando o usuário toca.
-      c.aplicarSugestaoDuracao();
-      expect(c.duracaoSegundos, equals(900));
-      c.aplicarSugestaoTexto();
-      expect(c.textoIkAi, equals('lendo Capitães da Areia'));
+      c.selecionarObjetivo(objetivoLeitura);
+      expect(c.sugestaoCategoriaIds.length, 2);
+      expect(c.categorias, isEmpty);
+      c.aplicarSugestaoCategorias();
+      expect(c.categorias.length, 2);
     });
 
     test('sugestão de categoria só vale para o objetivo escolhido', () async {
-      escolherAteUltimaEtapa();
+      escolherObjetivoECategorias(2);
       await c.confirmar();
       await Future<void>.delayed(const Duration(milliseconds: 20));
       c.reiniciarSessao();
       c.descartarHistoricoEmMemoria();
       await c.carregarHistorico();
-
       c.selecionarObjetivo(objetivoEstudo);
-      expect(c.sugestaoCategoriaId, isNull); // a categoria salva era de "Ler"
-      c.selecionarObjetivo(objetivoLeitura);
-      expect(c.sugestaoCategoriaId, equals(objetivoLeitura.categorias.first.id));
+      expect(c.sugestaoCategoriaIds, isEmpty);
     });
   });
 
-  group('Catálogo', () {
-    test('ids de categoria são únicos em todo o app', () {
-      final ids = <String>[];
-      for (final o in todosOsObjetivos) {
-        ids.addAll(o.categorias.map((cat) => cat.id));
-      }
-      expect(ids.toSet().length, equals(ids.length));
+  group('Escolha gravada (vale só no dia)', () {
+    test('volta no mesmo dia', () async {
+      escolherObjetivoECategorias(2);
+      await c.confirmar();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      c.descartarSessaoEmMemoria();
+      expect(c.estado, EstadoSessao.naoIniciada);
+
+      await c.restaurarSelecao();
+      expect(c.estado, EstadoSessao.ativa);
+      expect(c.objetivo?.id, objetivoLeitura.id);
+      expect(c.categorias.length, 2);
     });
 
-    test('títulos de categoria não têm erros de digitação conhecidos', () {
-      final titulos = [
-        for (final o in todosOsObjetivos) ...o.categorias.map((e) => e.titulo),
-      ];
-      expect(titulos.contains('Horro'), isFalse);
-      expect(titulos.contains('Terro'), isFalse);
-      expect(titulos.contains('Horror'), isTrue);
-      expect(titulos.contains('Terror'), isTrue);
+    test('não volta no dia seguinte', () async {
+      escolherObjetivoECategorias(1);
+      await c.confirmar();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      c.descartarSessaoEmMemoria();
+
+      agora = agora.add(const Duration(days: 1));
+      await c.restaurarSelecao();
+      expect(c.estado, EstadoSessao.naoIniciada);
+    });
+
+    test('reiniciar apaga a escolha gravada', () async {
+      escolherObjetivoECategorias(1);
+      await c.confirmar();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      c.reiniciarSessao();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await c.restaurarSelecao();
+      expect(c.estado, EstadoSessao.naoIniciada);
+    });
+
+    test('texto corrompido é ignorado', () {
+      expect(SelecaoSalva.tentarLer('{ruim'), isNull);
+      expect(SelecaoSalva.tentarLer(''), isNull);
+      expect(SelecaoSalva.tentarLer(null), isNull);
+      expect(SelecaoSalva.tentarLer('{"o":1}'), isNull);
+    });
+
+    test('ida e volta do JSON', () {
+      const s = SelecaoSalva(
+        objetivoId: 'ler',
+        categoriaIds: ['a', 'b'],
+        texto: 'oi',
+        permitirGemini: true,
+        focoMin: 15,
+        dia: '2026-11-04',
+      );
+      final l = SelecaoSalva.tentarLer(s.toJson())!;
+      expect(l.categoriaIds, ['a', 'b']);
+      expect(l.focoMin, 15);
+      expect(l.permitirGemini, isTrue);
+      expect(l.dia, '2026-11-04');
     });
   });
 }

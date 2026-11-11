@@ -2,14 +2,13 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'pages_configurar/controle_objetivo.dart';
-import 'pages_configurar/fluxo_objetivos_page.dart';
+import 'pages_configurar/destino_inicial.dart';
 import 'pages_configurar/sessao_guard.dart';
-import 'pages_home/home.dart';
 import 'pages_login/splash.dart';
 import 'services/auth_service.dart';
 import 'services/config_service.dart';
 import 'widgets/estilo.dart';
+import 'widgets/navegador.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,12 +34,15 @@ class MainApp extends StatelessWidget {
           locale: DevicePreview.locale(context),
           debugShowCheckedModeBanner: false,
           title: 'Ikai',
+          navigatorKey: NavegadorIk.chave,
+          navigatorObservers: [NavegadorIk.observador],
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Cores.laranja),
             useMaterial3: true,
           ),
-          // O SessaoGuard fica ACIMA do Navigator: quando o tempo acaba,
-          // todas as telas, diálogos e menus saem da árvore.
+          // O SessaoGuard fica ACIMA do Navigator: conta o tempo do dia,
+          // mostra os avisos e o botão da Ik AI e, quando a meta acaba,
+          // troca o app pela conversa de fim de tempo.
           builder: (context, child) => DevicePreview.appBuilder(
             context,
             Builder(
@@ -59,17 +61,15 @@ class MainApp extends StatelessWidget {
   }
 }
 
-/// Primeira tela do Navigator. Também é a tela que volta quando o usuário
-/// inicia uma nova sessão depois do bloqueio: se já está conectado, vai
-/// direto para a escolha da nova sessão, sem repetir splash e login.
+/// Primeira tela do Navigator. Também é a que volta quando o Navigator é
+/// recriado (depois da conversa de fim de tempo): se já está conectado, vai
+/// direto para onde a pessoa estava, sem repetir splash e login.
 class RaizApp extends StatelessWidget {
   const RaizApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     if (!AuthService.instance.logado) return const SplashPage();
-    return ControleObjetivos.instance.estado == EstadoSessao.ativa
-        ? const HomePage()
-        : const FluxoObjetivosPage();
+    return destinoInicial();
   }
 }

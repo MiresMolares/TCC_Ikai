@@ -68,7 +68,7 @@ class ArtigoPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${artigo.autor}  ·  ${artigo.minutosLeitura} min de leitura',
+              '${artigo.doUsuario ? '${artigo.autor} (leitor)' : artigo.autor}  ·  ${artigo.minutosLeitura} min de leitura',
               style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
             ),
             const SizedBox(height: 20),

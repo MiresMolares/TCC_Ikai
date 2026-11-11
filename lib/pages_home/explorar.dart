@@ -9,7 +9,7 @@ import '../widgets/artigo_card.dart';
 import '../widgets/estilo.dart';
 import '../widgets/seletor_nivel.dart';
 
-/// Busca DENTRO do modo da sessão: o que está fora do modo escolhido não
+/// Busca DENTRO do que você escolheu hoje: o que está fora do modo escolhido não
 /// aparece aqui.
 class ExplorarPage extends StatefulWidget {
   /// Cada mudança de valor pede o foco no campo de busca.
@@ -52,7 +52,7 @@ class _ExplorarPageState extends State<ExplorarPage> {
   Widget _construir(BuildContext context) {
     final c = ControleObjetivos.instance;
     final base = ArtigosRepositorio.doNivel(
-      ArtigosRepositorio.doModo(c.objetivo?.id, c.categoria?.id),
+      ArtigosRepositorio.doModo(c.objetivo?.id, c.categoriaIds),
       ConfigService.instance.nivelConteudo,
     );
     final consulta = _busca.text.trim();
@@ -72,7 +72,7 @@ class _ExplorarPageState extends State<ExplorarPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Buscando em ${c.categoria?.titulo ?? 'sua sessão'}.',
+          'Buscando em ${c.titulosDasCategorias.isEmpty ? 'suas categorias' : c.titulosDasCategorias}.',
           style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
         ),
         const SizedBox(height: 12),

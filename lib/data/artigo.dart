@@ -28,6 +28,17 @@ class Artigo {
   /// Cada item é um parágrafo do texto.
   final List<String> paragrafos;
 
+  /// true quando o artigo foi escrito por um usuário (não vem do acervo
+  /// do app). Hoje fica só neste aparelho; com o banco de dados, vira
+  /// conteúdo compartilhado.
+  final bool doUsuario;
+
+  /// Quem escreveu, quando [doUsuario] (e-mail da conta; nunca é exibido).
+  final String? autorEmail;
+
+  /// Data de criação ('aaaa-mm-dd'), só para artigos de usuário.
+  final String? criadoEm;
+
   const Artigo({
     required this.id,
     required this.objetivoId,
@@ -38,6 +49,9 @@ class Artigo {
     required this.tags,
     required this.paragrafos,
     this.nivel = 1,
+    this.doUsuario = false,
+    this.autorEmail,
+    this.criadoEm,
   });
 
   static const int nivelMinimo = 1;

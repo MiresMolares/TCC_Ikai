@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../data/artigo.dart';
 import '../pages_configurar/controle_objetivo.dart';
-import '../pages_configurar/sessao_guard.dart';
+import '../pages_configurar/fluxo_objetivos_page.dart';
 import '../services/artigos_repositorio.dart';
 import '../services/auth_service.dart';
 import '../services/config_service.dart';
+import '../services/tempo_diario.dart';
+import '../core/uso_diario.dart';
 import '../widgets/artigo_card.dart';
 import '../widgets/cartao_checkin.dart';
+import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
 import '../widgets/seletor_nivel.dart';
 import 'botoes_home/notificacao.dart';
@@ -128,11 +131,11 @@ class _InicioTabState extends State<InicioTab> {
     final nivel = ConfigService.instance.nivelConteudo;
     final semFiltro = ArtigosRepositorio.feedDaSessao(
       _c.objetivo?.id,
-      _c.categoria?.id,
+      _c.categoriaIds,
     );
     final feed = ArtigosRepositorio.feedDaSessao(
       _c.objetivo?.id,
-      _c.categoria?.id,
+      _c.categoriaIds,
       nivel: nivel,
     );
     final tags = ArtigosRepositorio.tagsDe(feed);
@@ -148,7 +151,8 @@ class _InicioTabState extends State<InicioTab> {
         _CampoBuscaFalso(aoTocar: widget.aoBuscar),
         const SizedBox(height: 20),
         const CartaoCheckIn(),
-        const _CartaoSessao(),
+        const CartaoUsoSemanal(),
+        const _CartaoMeta(),
         const SizedBox(height: 12),
         const _CartaoIkAi(),
         const SizedBox(height: 24),
@@ -163,8 +167,8 @@ class _InicioTabState extends State<InicioTab> {
         const SizedBox(height: 4),
         Text(
           feed.length == 1
-              ? 'Um conteúdo escolhido para esta sessão.'
-              : '${feed.length} conteúdos escolhidos para esta sessão.',
+              ? 'Um conteúdo escolhido para hoje.'
+              : '${feed.length} conteúdos escolhidos para hoje.',
           style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
         ),
         if (semFiltro.isNotEmpty) ...[
@@ -388,7 +392,7 @@ class _CampoBuscaFalso extends StatelessWidget {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Buscar nesta sessão',
+                  'Buscar no seu feed de hoje',
                   style: TextStyle(fontSize: 14, color: Cores.subtitulo),
                 ),
               ),
@@ -412,10 +416,7 @@ class _CartaoIkAi extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const IkAiPage()),
-        ),
+        onTap: abrirIkAi,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -456,17 +457,19 @@ class _CartaoIkAi extends StatelessWidget {
   }
 }
 
-class _CartaoSessao extends StatelessWidget {
-  const _CartaoSessao();
+/// O tempo de hoje: quanto falta da meta que a PESSOA escolheu, o que ela
+/// está vendo, e as duas saídas: trocar as categorias ou encerrar o dia.
+class _CartaoMeta extends StatelessWidget {
+  const _CartaoMeta();
 
   Future<void> _encerrar(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Encerrar a sessão agora?'),
+        title: const Text('Encerrar por hoje?'),
         content: const Text(
-          'Você verá as sugestões da Ik AI e, para voltar ao feed, precisará '
-          'iniciar uma nova sessão.',
+          'A Ik AI vai conversar com você sobre o que você aprendeu e '
+          'depois o app descansa até amanhã.',
         ),
         actions: [
           TextButton(
@@ -480,11 +483,21 @@ class _CartaoSessao extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) ControleObjetivos.instance.encerrarAgora();
+    if (ok == true) TempoDiarioService.instance.abrirFimVoluntario();
+  }
+
+  void _trocarCategorias(BuildContext context) {
+    ControleObjetivos.instance.reiniciarSessao();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const FluxoObjetivosPage()),
+      (rota) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = TempoDiarioService.instance;
     final c = ControleObjetivos.instance;
     return Container(
       padding: const EdgeInsets.all(20),
@@ -494,8 +507,8 @@ class _CartaoSessao extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ValueListenableBuilder<Duration>(
-            valueListenable: c.restante,
+          ValueListenableBuilder<int>(
+            valueListenable: t.usadoHoje,
             builder: (context, _, __) => SizedBox(
               width: 92,
               height: 92,
@@ -506,18 +519,29 @@ class _CartaoSessao extends StatelessWidget {
                     width: 92,
                     height: 92,
                     child: CircularProgressIndicator(
-                      value: 1 - c.fracaoUsada.clamp(0.0, 1.0),
+                      value: 1 - t.fracaoUsada.clamp(0.0, 1.0),
                       strokeWidth: 8,
                       color: Cores.laranja,
                       backgroundColor: Cores.bege,
                     ),
                   ),
-                  const TempoRestante(
-                    estilo: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Cores.laranja,
-                    ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        formatarHm(t.restanteSeg),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Cores.laranja,
+                        ),
+                      ),
+                      const Text(
+                        'restam',
+                        style:
+                            TextStyle(fontSize: 10, color: Cores.subtitulo),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -529,7 +553,7 @@ class _CartaoSessao extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'SESSÃO EM ANDAMENTO',
+                  'SEU TEMPO DE HOJE',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -538,35 +562,66 @@ class _CartaoSessao extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  c.categoria?.titulo ?? 'Sem categoria',
+                  c.titulosDasCategorias.isEmpty
+                      ? 'Sem categoria'
+                      : c.titulosDasCategorias,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 17,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Cores.titulo,
                   ),
                 ),
-                Text(
-                  'Limite de ${formatarDuracao(c.duracaoTotal.inSeconds)}',
-                  style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
+                ValueListenableBuilder<int>(
+                  valueListenable: t.usadoHoje,
+                  builder: (context, _, __) => Text(
+                    'Meta de ${formatarHm(t.limiteHojeSeg)} por dia',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Cores.subtitulo,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 6),
-                TextButton(
-                  onPressed: () => _encerrar(context),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    foregroundColor: Cores.laranja,
-                  ),
-                  child: const Text(
-                    'Encerrar sessão',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
+                Wrap(
+                  spacing: 14,
+                  children: [
+                    _LinkPequeno(
+                      'Trocar categorias',
+                      () => _trocarCategorias(context),
+                    ),
+                    _LinkPequeno('Encerrar o dia', () => _encerrar(context)),
+                  ],
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LinkPequeno extends StatelessWidget {
+  final String texto;
+  final VoidCallback aoTocar;
+
+  const _LinkPequeno(this.texto, this.aoTocar);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: aoTocar,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        foregroundColor: Cores.laranja,
+      ),
+      child: Text(
+        texto,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
       ),
     );
   }

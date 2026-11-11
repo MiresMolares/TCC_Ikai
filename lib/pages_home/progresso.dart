@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../services/biblioteca_service.dart';
 import '../services/compromisso_service.dart';
 import '../services/progresso_service.dart';
+import '../services/tempo_diario.dart';
+import '../core/uso_diario.dart';
+import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
 
 /// Progresso individual (Pilar 4): você só se compara com o seu próprio
@@ -23,11 +26,14 @@ class ProgressoPage extends StatelessWidget {
         ProgressoService.instance,
         BibliotecaService.instance,
         CompromissoService.instance,
+        TempoDiarioService.instance,
       ]),
       builder: (context, _) {
         final p = ProgressoService.instance;
+        final t = TempoDiarioService.instance;
         final conquistas = p.conquistas(
           totalSalvos: BibliotecaService.instance.todosOsIds.length,
+          diasNaMeta: t.diasNaMeta,
         );
         final porObjetivo = p.lidosPorObjetivo();
         final maior = porObjetivo.values.fold<int>(1, (a, b) => b > a ? b : a);
@@ -55,8 +61,10 @@ class ProgressoPage extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: _Numero(
-                    valor: '${p.sessoesConcluidas}',
-                    rotulo: 'sessões',
+                    valor: '${t.diasNaMeta}',
+                    rotulo: t.diasNaMeta == 1
+                        ? 'dia dentro da meta'
+                        : 'dias dentro da meta',
                   ),
                 ),
               ],
@@ -66,8 +74,8 @@ class ProgressoPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: _Numero(
-                    valor: formatarMinutos(p.segundosEmSessao),
-                    rotulo: 'em sessão',
+                    valor: formatarHm(t.resumoSemanal.totalSeg),
+                    rotulo: 'no Ikai em 7 dias',
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -79,7 +87,9 @@ class ProgressoPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            const CartaoUsoSemanal(comBarras: true),
+            const SizedBox(height: 8),
             const Text(
               'Leituras por modo',
               style: TextStyle(

@@ -2,16 +2,21 @@ import '../core/texto.dart';
 import '../data/artigo.dart';
 import '../data/artigos_dados.dart';
 
-/// Quantidade FIXA de conteúdos no feed de uma sessão.
-/// O feed é finito: ao chegar nesse número, o usuário vê o fim.
+/// Quantidade FIXA de conteúdos no feed. Escolher mais categorias NÃO
+/// aumenta esse número: o feed é finito por escolha.
 const int conteudosPorSessao = 8;
 
-/// Acesso aos artigos. Hoje lê de `artigos_dados.dart`; quando o banco de
-/// dados existir, só este arquivo precisa mudar. Dart puro.
+/// Acesso aos artigos. Hoje lê de `artigos_dados.dart` (mais os escritos por
+/// usuários); quando o banco de dados existir, só este arquivo precisa mudar. Dart puro.
 class ArtigosRepositorio {
   ArtigosRepositorio._();
 
-  static List<Artigo> get todos => artigosDados;
+  /// Fonte extra de artigos (os escritos por usuários). Quem cuida deles
+  /// (ConteudoUsuarioService) registra aqui; o acervo do app continua em
+  /// `artigosDados`. Com o banco de dados, basta trocar esta fonte.
+  static List<Artigo> Function() extras = () => const [];
+
+  static List<Artigo> get todos => [...artigosDados, ...extras()];
 
   static Artigo? porId(String id) {
     for (final a in todos) {
@@ -20,13 +25,13 @@ class ArtigosRepositorio {
     return null;
   }
 
-  /// Artigos que respeitam o modo da sessão (objetivo + categoria).
-  /// Conteúdo fora do modo NUNCA aparece aqui.
-  static List<Artigo> doModo(String? objetivoId, String? categoriaId) {
-    if (objetivoId == null || categoriaId == null) return const [];
+  /// Artigos que respeitam a escolha do dia (objetivo + UMA OU MAIS
+  /// categorias). Conteúdo fora da escolha NUNCA aparece aqui.
+  static List<Artigo> doModo(String? objetivoId, Set<String> categoriaIds) {
+    if (objetivoId == null || categoriaIds.isEmpty) return const [];
     return todos
-        .where(
-            (a) => a.objetivoId == objetivoId && a.categoriaId == categoriaId)
+        .where((a) =>
+            a.objetivoId == objetivoId && categoriaIds.contains(a.categoriaId))
         .toList();
   }
 
@@ -36,15 +41,36 @@ class ArtigosRepositorio {
     return base.where((a) => a.nivel == nivel).toList();
   }
 
+  /// Intercala as categorias (um de cada, em rodízio), para que nenhuma
+  /// domine o feed quando a pessoa escolhe várias. Com uma só categoria, a
+  /// ordem original é mantida.
+  static List<Artigo> _intercalar(List<Artigo> lista) {
+    final porCategoria = <String, List<Artigo>>{};
+    for (final a in lista) {
+      porCategoria.putIfAbsent(a.categoriaId, () => []).add(a);
+    }
+    if (porCategoria.length <= 1) return lista;
+    final filas = porCategoria.values.toList();
+    final saida = <Artigo>[];
+    var i = 0;
+    while (saida.length < lista.length) {
+      for (final f in filas) {
+        if (i < f.length) saida.add(f[i]);
+      }
+      i++;
+    }
+    return saida;
+  }
+
   /// Feed finito da sessão: no máximo [conteudosPorSessao] artigos.
   ///
   /// [nivel] 0 mostra todos; 1 a 3 mostra só aquele nível de dificuldade.
   static List<Artigo> feedDaSessao(
     String? objetivoId,
-    String? categoriaId, {
+    Set<String> categoriaIds, {
     int nivel = 0,
   }) {
-    final lista = doNivel(doModo(objetivoId, categoriaId), nivel);
+    final lista = _intercalar(doNivel(doModo(objetivoId, categoriaIds), nivel));
     return lista.length <= conteudosPorSessao
         ? lista
         : lista.sublist(0, conteudosPorSessao);

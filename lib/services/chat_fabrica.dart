@@ -10,26 +10,28 @@ import 'ik_ai_service.dart';
 /// o texto da etapa "Ik AI" e a memória guardada no perfil. O primeiro nome
 /// fica só no aparelho (nunca vai para o Gemini).
 ///
-/// [ocasiao]: 'fim' quando o tempo acabou, 'livre' quando a pessoa abre o chat.
+/// [ocasiao]: 'fim' quando o tempo do dia acabou, 'livre' quando a pessoa
+/// abre o chat pelo botão da Ik AI. [fimDoDia] liga a conversa de fim de
+/// tempo (aprendizado, continuar com justificativa, ideias, encerrar).
 ChatIkAi novoChatIkAi({
   required String ocasiao,
-  ResumoSessao? resumo,
   int minutosUsados = 0,
+  AcoesFimDoDia? fimDoDia,
 }) {
   final c = ControleObjetivos.instance;
-  final texto = (resumo?.textoIkAi ?? c.textoIkAi).trim();
+  final texto = c.textoIkAi.trim();
   final memoria = IkAiService.memoria;
   final fontes = <String>[
     texto,
     ...memoria.vontades,
     memoria.detalhePrincipal ?? '',
   ];
-  final permitiu = resumo?.permitiuEnvioGemini ?? c.permitirGemini;
+  final permitiu = c.permitirGemini;
 
   return ChatIkAi(
     estado: EstadoConversa(temas: temasDoTexto(fontes.join(' '))),
     nome: AuthService.instance.usuarioAtual?.primeiroNome,
-    objetivoTitulo: resumo?.objetivoTitulo ?? c.objetivo?.titulo ?? '',
+    objetivoTitulo: c.objetivo?.titulo ?? '',
     textoDaSessao: texto,
     ocasiao: ocasiao,
     minutosUsados: minutosUsados,
@@ -37,5 +39,6 @@ ChatIkAi novoChatIkAi({
     usarGemini: permitiu,
     aoCombinar: (atividade, quando) =>
         CompromissoService.instance.adicionar(atividade, quando),
+    fimDoDia: fimDoDia,
   );
 }
