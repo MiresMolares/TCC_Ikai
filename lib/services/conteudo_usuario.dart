@@ -7,8 +7,10 @@ import '../data/artigo.dart';
 import '../data/comunidade.dart';
 import '../data/comunidades_dados.dart';
 import '../pages_configurar/controle_objetivo.dart';
+import 'api_client.dart';
 import 'artigos_repositorio.dart';
 import 'auth_service.dart';
+import 'conteudo_remoto.dart';
 import 'conteudo_repositorio.dart';
 
 /// Resultado de uma ação que pode ser recusada: ou traz o [valor], ou o
@@ -46,12 +48,17 @@ class ConteudoUsuarioService extends ChangeNotifier {
   }) : _quem = quem ?? _quemDaConta,
        _agora = agora ?? DateTime.now;
 
-  /// TROQUE AQUI quando o banco de dados existir:
-  ///   ConteudoUsuarioService._(ConteudoRemoto(baseUrl: ...))
-  /// (veja lib/services/conteudo_remoto.dart).
+  /// Com `API_URL` (veja api_client.dart) o conteúdo mora no banco de dados;
+  /// sem ela, só neste aparelho.
   static final ConteudoUsuarioService instance = ConteudoUsuarioService._(
-    ConteudoLocal(),
+    ApiClient.instance.ativo
+        ? ConteudoRemoto(ApiClient.instance)
+        : ConteudoLocal(),
   );
+
+  /// A mensagem do servidor, se houver; senão, a padrão.
+  static String _motivo(Object e, String padrao) =>
+      e is ErroDeConteudo ? e.mensagem : padrao;
 
   static QuemEscreve _quemDaConta() {
     final u = AuthService.instance.usuarioAtual;
@@ -250,9 +257,9 @@ class ConteudoUsuarioService extends ChangeNotifier {
     );
     try {
       await _repo.salvarArtigo(artigo);
-    } catch (_) {
-      return const Resultado.erro(
-        'Não foi possível salvar agora. Tente de novo.',
+    } catch (e) {
+      return Resultado.erro(
+        _motivo(e, 'Não foi possível salvar agora. Tente de novo.'),
       );
     }
     _artigos.add(artigo);
@@ -345,9 +352,9 @@ class ConteudoUsuarioService extends ChangeNotifier {
     );
     try {
       await _repo.salvarComunidade(c);
-    } catch (_) {
-      return const Resultado.erro(
-        'Não foi possível salvar agora. Tente de novo.',
+    } catch (e) {
+      return Resultado.erro(
+        _motivo(e, 'Não foi possível salvar agora. Tente de novo.'),
       );
     }
     _comunidades.add(c);
@@ -411,9 +418,9 @@ class ConteudoUsuarioService extends ChangeNotifier {
     );
     try {
       await _repo.salvarPost(p);
-    } catch (_) {
-      return const Resultado.erro(
-        'Não foi possível enviar agora. Tente de novo.',
+    } catch (e) {
+      return Resultado.erro(
+        _motivo(e, 'Não foi possível enviar agora. Tente de novo.'),
       );
     }
     (_posts[comunidadeId] ??= []).insert(0, p);

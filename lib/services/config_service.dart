@@ -12,6 +12,7 @@ class ConfigService extends ChangeNotifier {
   static const _kNotificacoes = 'cfg_notificacoes';
   static const _kTexto = 'cfg_tamanho_texto';
   static const _kNivel = 'cfg_nivel_conteudo';
+  static const _kGemini = 'cfg_gemini_autorizado';
 
   static const double textoMinimo = 0.8;
   static const double textoMaximo = 1.4;
@@ -19,12 +20,17 @@ class ConfigService extends ChangeNotifier {
   bool _notificacoes = false;
   double _tamanhoTexto = 1.0;
   int _nivelConteudo = 0;
+  bool? _geminiAutorizado;
 
   bool get notificacoes => _notificacoes;
   double get tamanhoTexto => _tamanhoTexto;
 
   /// Nível de dificuldade que o usuário quer ver: 0 todos, 1 a 3.
   int get nivelConteudo => _nivelConteudo;
+
+  /// A pessoa autorizou a Ik AI a usar a IA (Gemini)? null = ainda não
+  /// respondeu (o chat pergunta uma vez). Só vale com o Gemini disponível.
+  bool? get geminiAutorizado => _geminiAutorizado;
 
   Future<void> carregar() async {
     try {
@@ -34,6 +40,7 @@ class ConfigService extends ChangeNotifier {
       _tamanhoTexto = t.clamp(textoMinimo, textoMaximo).toDouble();
       final n = p.getInt(_kNivel) ?? 0;
       _nivelConteudo = (n >= 0 && n <= 3) ? n : 0;
+      _geminiAutorizado = p.getBool(_kGemini);
     } catch (_) {
       // Sem armazenamento, usa os padrões.
     }
@@ -65,6 +72,15 @@ class ConfigService extends ChangeNotifier {
     try {
       final p = await SharedPreferences.getInstance();
       await p.setInt(_kNivel, nivel);
+    } catch (_) {}
+  }
+
+  Future<void> definirGeminiAutorizado(bool valor) async {
+    _geminiAutorizado = valor;
+    notifyListeners();
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool(_kGemini, valor);
     } catch (_) {}
   }
 }

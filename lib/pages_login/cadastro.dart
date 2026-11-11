@@ -31,7 +31,10 @@ class _CadastroPageState extends State<CadastroPage> {
     super.dispose();
   }
 
-  void cadastrar() {
+  bool _enviando = false;
+
+  Future<void> cadastrar() async {
+    if (_enviando) return;
     if (nomeController.text.trim().isEmpty ||
         emailController.text.trim().isEmpty ||
         senhaController.text.isEmpty ||
@@ -44,11 +47,14 @@ class _CadastroPageState extends State<CadastroPage> {
       return;
     }
 
-    final erro = AuthService.instance.cadastrar(
+    _enviando = true;
+    final erro = await AuthService.instance.cadastrar(
       nome: nomeController.text,
       email: emailController.text,
       senha: senhaController.text,
     );
+    _enviando = false;
+    if (!mounted) return;
     if (erro != null) {
       mostrarAviso(context, erro);
       return;

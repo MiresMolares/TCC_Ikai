@@ -64,7 +64,12 @@ class ConfiguracoesPage extends StatelessWidget {
       ),
     );
     if (ok != true || !context.mounted) return;
-    SessaoUsuario.aoExcluirConta();
+    final erro = await SessaoUsuario.aoExcluirConta();
+    if (!context.mounted) return;
+    if (erro != null) {
+      mostrarAviso(context, erro);
+      return;
+    }
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -150,24 +155,35 @@ class ConfiguracoesPage extends StatelessWidget {
                   'Ik AI o que você quer fazer longe da tela.',
                 ),
               ),
-              ListTile(
-                leading: Icon(
-                  GeminiService.padrao.configurado
-                      ? Icons.cloud_done_outlined
-                      : Icons.cloud_off_outlined,
-                  color: Cores.laranja,
-                ),
-                title: const Text('Gemini (Google)'),
-                subtitle: Text(
-                  GeminiService.padrao.configurado
-                      ? 'Ativo neste app. Só é usado se você autorizar: na '
-                          'etapa "Ik AI" (versão avançada) ou no '
-                          'interruptor dentro da conversa com a Ik AI.'
-                      : 'Inativo: falta a chave de acesso (veja '
-                          'README_ENTREGA.md). Enquanto isso, as sugestões '
-                          'são geradas no seu aparelho.',
-                ),
-              ),
+              GeminiService.padrao.configurado
+                  ? SwitchListTile(
+                      secondary: const Icon(
+                        Icons.cloud_done_outlined,
+                        color: Cores.laranja,
+                      ),
+                      value: cfg.geminiAutorizado == true,
+                      onChanged: cfg.definirGeminiAutorizado,
+                      activeTrackColor: Cores.verde,
+                      title: const Text('IA da Ik AI (Gemini, Google)'),
+                      subtitle: const Text(
+                        'Disponível. Se ligada, só o que você escrever na '
+                        'conversa é enviado; nunca seu nome nem seu e-mail. '
+                        'Desligada, as respostas são prontas, no aparelho.',
+                      ),
+                    )
+                  : const ListTile(
+                      leading: Icon(
+                        Icons.cloud_off_outlined,
+                        color: Cores.laranja,
+                      ),
+                      title: Text('IA da Ik AI (Gemini, Google)'),
+                      subtitle: Text(
+                        'Indisponível: o servidor do Ikai não está '
+                        'conectado ou não tem a chave. Enquanto isso, as '
+                        'respostas são prontas, geradas no seu aparelho '
+                        '(veja o README_ENTREGA.md).',
+                      ),
+                    ),
             ]),
             const _Secao('Privacidade e dados'),
             _Cartao([
@@ -394,13 +410,14 @@ class _AlterarSenhaPageState extends State<_AlterarSenhaPage> {
     super.dispose();
   }
 
-  void _salvar() {
+  Future<void> _salvar() async {
     if (_nova.text != _confirma.text) {
       mostrarAviso(context, 'As senhas não coincidem.');
       return;
     }
-    final erro = AuthService.instance
+    final erro = await AuthService.instance
         .alterarSenha(atual: _atual.text, nova: _nova.text);
+    if (!mounted) return;
     if (erro != null) {
       mostrarAviso(context, erro);
       return;

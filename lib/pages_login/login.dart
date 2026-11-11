@@ -68,16 +68,18 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> entrar() async {
     if (_entrando) return;
-    final erro = AuthService.instance.entrar(
+    setState(() => _entrando = true);
+    final erro = await AuthService.instance.entrar(
       emailController.text,
       senhaController.text,
     );
+    if (!mounted) return;
     if (erro != null) {
+      setState(() => _entrando = false);
       mostrarAviso(context, erro);
       return;
     }
 
-    setState(() => _entrando = true);
     await _guardarEmailLembrado();
     await SessaoUsuario.aoEntrar();
     if (!mounted) return;

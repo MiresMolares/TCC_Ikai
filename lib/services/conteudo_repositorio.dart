@@ -11,11 +11,21 @@ import '../data/conteudo_json.dart';
 ///
 ///  - HOJE: [ConteudoLocal], que grava no aparelho (SharedPreferences) e
 ///    simula o banco de dados, para o recurso poder ser testado inteiro.
-///  - DEPOIS: `ConteudoRemoto` (arquivo `conteudo_remoto.dart`, comentado),
-///    que fala com o banco de dados. Trocar uma pela outra é uma linha em
-///    `ConteudoUsuarioService.instance`.
+///  - COM `API_URL`: [ConteudoRemoto] (`conteudo_remoto.dart`), que fala com
+///    o banco de dados pela API (`backend/`). A escolha de uma ou outra está
+///    em `ConteudoUsuarioService.instance`.
 ///
 /// Os métodos são assíncronos de propósito: o banco de dados será.
+/// Erro do repositório com mensagem pronta para a pessoa (por exemplo, o
+/// servidor recusou: "Já existe uma comunidade com esse nome.").
+class ErroDeConteudo implements Exception {
+  final String mensagem;
+  const ErroDeConteudo(this.mensagem);
+
+  @override
+  String toString() => 'ErroDeConteudo: $mensagem';
+}
+
 abstract class ConteudoRepositorio {
   Future<List<Artigo>> listarArtigos();
   Future<void> salvarArtigo(Artigo artigo);

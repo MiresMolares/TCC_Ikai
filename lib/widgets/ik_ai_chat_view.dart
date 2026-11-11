@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/atividades.dart';
 import '../services/chat_ik_ai.dart';
+import '../services/config_service.dart';
 import 'estilo.dart';
 
 /// Conversa com a Ik AI: balões, cartões de atividade, respostas rápidas e
@@ -61,6 +62,102 @@ class _IkAiChatViewState extends State<IkAiChatView> {
     unawaited(widget.chat.enviar(texto));
   }
 
+  /// Autorização da IA e estado atual. Se o Gemini não está disponível,
+  /// diz com franqueza que as respostas são prontas, geradas no aparelho.
+  Widget _faixaDaIa(ChatIkAi chat) {
+    final cfg = ConfigService.instance;
+
+    if (!chat.geminiDisponivel) {
+      return const _FaixaTexto(
+        'Modo local: respostas prontas geradas no aparelho, sem IA externa.',
+      );
+    }
+
+    // Primeira vez: pergunta uma vez, com clareza, e guarda a resposta.
+    if (cfg.geminiAutorizado == null && !chat.usarGemini) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Cores.verdeClaro,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quer que a Ik AI converse com você usando inteligência '
+              'artificial (Gemini, do Google)?',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Cores.tituloVerde,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Só o que você escrever aqui é enviado, nunca seu nome nem seu '
+              'e-mail. Sem isso, as respostas são prontas e se repetem. Você '
+              'muda quando quiser em Configurações.',
+              style: TextStyle(fontSize: 12, color: Cores.subtitulo),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    cfg.definirGeminiAutorizado(true);
+                    chat.usarGemini = true;
+                    setState(() {});
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Cores.laranja,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Sim, usar a IA'),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    cfg.definirGeminiAutorizado(false);
+                    setState(() {});
+                  },
+                  child: const Text('Agora não'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    final String estado;
+    if (!chat.usarGemini) {
+      estado = 'IA desligada: respostas prontas geradas no aparelho.';
+    } else if (chat.ultimaViaGemini) {
+      estado = 'IA ligada: esta resposta veio do Gemini.';
+    } else if (chat.motivoLocal != null && chat.mensagens.length > 1) {
+      estado = 'O Gemini não respondeu desta vez; usei uma resposta pronta.';
+    } else {
+      estado = 'IA ligada: o Gemini responde às suas mensagens.';
+    }
+    return SwitchListTile(
+      dense: true,
+      value: chat.usarGemini,
+      onChanged: (v) {
+        cfg.definirGeminiAutorizado(v);
+        chat.usarGemini = v;
+        setState(() {});
+      },
+      activeTrackColor: Cores.verde,
+      title: const Text(
+        'Conversar com a IA (Gemini)',
+        style: TextStyle(fontSize: 13),
+      ),
+      subtitle: Text(estado, style: const TextStyle(fontSize: 11)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final chat = widget.chat;
@@ -100,22 +197,7 @@ class _IkAiChatViewState extends State<IkAiChatView> {
               style: const TextStyle(fontSize: 11, color: Cores.subtitulo),
             ),
           ),
-        if (chat.geminiDisponivel && !chat.encerrada)
-          SwitchListTile(
-            dense: true,
-            value: chat.usarGemini,
-            onChanged: (v) => chat.usarGemini = v,
-            activeTrackColor: Cores.verde,
-            title: const Text(
-              'Conversar também com o Gemini',
-              style: TextStyle(fontSize: 13),
-            ),
-            subtitle: const Text(
-              'Envia ao Google só o que você escrever aqui. Nunca seu nome '
-              'nem seu e-mail.',
-              style: TextStyle(fontSize: 11),
-            ),
-          ),
+        if (!chat.encerrada) _faixaDaIa(chat),
         if (!chat.encerrada)
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
@@ -392,6 +474,22 @@ class _Digitando extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: Cores.subtitulo),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FaixaTexto extends StatelessWidget {
+  final String texto;
+  const _FaixaTexto(this.texto);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+      child: Text(
+        texto,
+        style: const TextStyle(fontSize: 11, color: Cores.subtitulo),
       ),
     );
   }

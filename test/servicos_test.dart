@@ -12,69 +12,69 @@ void main() {
     final auth = AuthService.instance;
     setUp(() => auth.sair());
 
-    test('conta de teste entra; senha errada não entra', () {
-      expect(auth.entrar('adm@email.com', 'errada'), isNotNull);
+    test('conta de teste entra; senha errada não entra', () async {
+      expect(await auth.entrar('adm@email.com', 'errada'), isNotNull);
       expect(auth.logado, isFalse);
-      expect(auth.entrar('adm@email.com', '1234'), isNull);
+      expect(await auth.entrar('adm@email.com', '1234'), isNull);
       expect(auth.logado, isTrue);
       expect(auth.usuarioAtual!.primeiroNome, equals('Administrador'));
     });
 
     test('e-mail ignora maiúsculas e espaços; campos vazios são recusados',
-        () {
-      expect(auth.entrar('  ADM@Email.com ', '1234'), isNull);
+        () async {
+      expect(await auth.entrar('  ADM@Email.com ', '1234'), isNull);
       auth.sair();
-      expect(auth.entrar('', ''), isNotNull);
-      expect(auth.entrar('semarroba', '1234'), isNotNull);
+      expect(await auth.entrar('', ''), isNotNull);
+      expect(await auth.entrar('semarroba', '1234'), isNotNull);
     });
 
-    test('cadastro valida dados e impede e-mail repetido', () {
+    test('cadastro valida dados e impede e-mail repetido', () async {
       expect(
-        auth.cadastrar(nome: 'A', email: 'a@a.com', senha: '1234'),
+        await auth.cadastrar(nome: 'A', email: 'a@a.com', senha: '1234'),
         isNotNull,
       );
       expect(
-        auth.cadastrar(nome: 'Ana Souza', email: 'invalido', senha: '1234'),
+        await auth.cadastrar(nome: 'Ana Souza', email: 'invalido', senha: '1234'),
         isNotNull,
       );
       expect(
-        auth.cadastrar(nome: 'Ana Souza', email: 'ana@a.com', senha: '12'),
+        await auth.cadastrar(nome: 'Ana Souza', email: 'ana@a.com', senha: '12'),
         isNotNull,
       );
       expect(
-        auth.cadastrar(nome: 'Ana Souza', email: 'ana@a.com', senha: 'abcd'),
+        await auth.cadastrar(nome: 'Ana Souza', email: 'ana@a.com', senha: 'abcd'),
         isNull,
       );
       expect(
-        auth.cadastrar(nome: 'Outra', email: 'ANA@a.com', senha: 'abcd'),
+        await auth.cadastrar(nome: 'Outra', email: 'ANA@a.com', senha: 'abcd'),
         isNotNull,
       );
-      expect(auth.entrar('ana@a.com', 'abcd'), isNull);
+      expect(await auth.entrar('ana@a.com', 'abcd'), isNull);
       expect(auth.usuarioAtual!.primeiroNome, equals('Ana'));
     });
 
-    test('atualizar perfil, trocar senha e excluir conta', () {
-      auth.cadastrar(nome: 'Bia Lima', email: 'bia@a.com', senha: 'abcd');
-      auth.entrar('bia@a.com', 'abcd');
+    test('atualizar perfil, trocar senha e excluir conta', () async {
+      await auth.cadastrar(nome: 'Bia Lima', email: 'bia@a.com', senha: 'abcd');
+      await auth.entrar('bia@a.com', 'abcd');
 
-      expect(auth.atualizarPerfil(nome: 'B', email: 'bia@a.com'), isNotNull);
+      expect(await auth.atualizarPerfil(nome: 'B', email: 'bia@a.com'), isNotNull);
       expect(
-        auth.atualizarPerfil(nome: 'Bia Souza', email: 'adm@email.com'),
+        await auth.atualizarPerfil(nome: 'Bia Souza', email: 'adm@email.com'),
         isNotNull, // e-mail de outra conta
       );
       expect(
-        auth.atualizarPerfil(nome: 'Bia Souza', email: 'bia2@a.com'),
+        await auth.atualizarPerfil(nome: 'Bia Souza', email: 'bia2@a.com'),
         isNull,
       );
       expect(auth.usuarioAtual!.email, equals('bia2@a.com'));
 
-      expect(auth.alterarSenha(atual: 'x', nova: 'novasenha'), isNotNull);
-      expect(auth.alterarSenha(atual: 'abcd', nova: '1'), isNotNull);
-      expect(auth.alterarSenha(atual: 'abcd', nova: 'novasenha'), isNull);
+      expect(await auth.alterarSenha(atual: 'x', nova: 'novasenha'), isNotNull);
+      expect(await auth.alterarSenha(atual: 'abcd', nova: '1'), isNotNull);
+      expect(await auth.alterarSenha(atual: 'abcd', nova: 'novasenha'), isNull);
 
-      auth.excluirConta();
+      await auth.excluirConta();
       expect(auth.logado, isFalse);
-      expect(auth.entrar('bia2@a.com', 'novasenha'), isNotNull);
+      expect(await auth.entrar('bia2@a.com', 'novasenha'), isNotNull);
     });
   });
 

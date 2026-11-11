@@ -4,6 +4,7 @@ import '../pages_configurar/controle_objetivo.dart';
 import 'auth_service.dart';
 import 'chat_ik_ai.dart';
 import 'compromisso_service.dart';
+import 'config_service.dart';
 import 'ik_ai_service.dart';
 
 /// Monta uma conversa com a Ik AI a partir do que o usuário DECLAROU:
@@ -26,7 +27,10 @@ ChatIkAi novoChatIkAi({
     ...memoria.vontades,
     memoria.detalhePrincipal ?? '',
   ];
-  final permitiu = c.permitirGemini;
+  // Autorização: a da etapa "Ik AI" (versão avançada) ou a que a pessoa deu
+  // uma vez no chat / em Configurações. Sem nenhuma das duas, nada sai.
+  final permitiu =
+      c.permitirGemini || ConfigService.instance.geminiAutorizado == true;
 
   return ChatIkAi(
     estado: EstadoConversa(temas: temasDoTexto(fontes.join(' '))),

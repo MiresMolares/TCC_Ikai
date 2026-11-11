@@ -447,8 +447,7 @@ class ChatIkAi extends ChangeNotifier {
     // 5) Gemini, só se autorizado; falhou, vale o local.
     if (_usarGemini &&
         _gemini.configurado &&
-        _chamadasIa < limiteChamadasIa &&
-        local.opcoes.isNotEmpty) {
+        _chamadasIa < limiteChamadasIa) {
       _pensando = true;
       _avisar();
       _chamadasIa++;

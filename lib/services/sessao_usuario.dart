@@ -46,8 +46,11 @@ class SessaoUsuario {
     AuthService.instance.sair();
   }
 
-  /// Exclui a conta (de teste) e limpa tudo.
-  static void aoExcluirConta() {
+  /// Exclui a conta e limpa tudo. Com a API, o servidor apaga primeiro: se
+  /// falhar, devolve o erro e nada é apagado do aparelho.
+  static Future<String?> aoExcluirConta() async {
+    final erro = await AuthService.instance.apagarNoServidor();
+    if (erro != null) return erro;
     TempoDiarioService.instance.apagarDaConta(); // lê o e-mail antes
     ControleObjetivos.instance.reiniciarSessao();
     ControleObjetivos.instance.descartarHistoricoEmMemoria();
@@ -57,6 +60,6 @@ class SessaoUsuario {
     CompromissoService.instance.apagarDaConta();
     final email = AuthService.instance.usuarioAtual?.email;
     if (email != null) ConteudoUsuarioService.instance.apagarDaConta(email);
-    AuthService.instance.excluirConta();
+    return AuthService.instance.excluirConta();
   }
 }

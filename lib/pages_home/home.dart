@@ -12,6 +12,7 @@ import '../widgets/artigo_card.dart';
 import '../widgets/cartao_checkin.dart';
 import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
+import '../widgets/navegador.dart';
 import '../widgets/seletor_nivel.dart';
 import 'botoes_home/notificacao.dart';
 import 'biblioteca.dart';
@@ -36,8 +37,23 @@ class _HomePageState extends State<HomePage> {
   /// Cada incremento pede para o Explorar focar o campo de busca.
   final ValueNotifier<int> _pedidoDeBusca = ValueNotifier(0);
 
+  Route<dynamic>? _rota;
+
+  /// Só a Home mostra o botão flutuante da Ik AI.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final rota = ModalRoute.of(context);
+    if (!identical(rota, _rota)) {
+      NavegadorIk.desregistrarHome(_rota);
+      _rota = rota;
+      NavegadorIk.registrarHome(rota);
+    }
+  }
+
   @override
   void dispose() {
+    NavegadorIk.desregistrarHome(_rota);
     _pedidoDeBusca.dispose();
     super.dispose();
   }

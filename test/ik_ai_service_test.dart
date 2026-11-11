@@ -40,9 +40,9 @@ void main() {
       expect(m.contains('Paixão'), isFalse);
     });
 
-    test('usuarioLogado é null sem login e não traz valores padrão', () {
+    test('usuarioLogado é null sem login e não traz valores padrão', () async {
       expect(IkAiService.usuarioLogado, isNull);
-      AuthService.instance.entrar('adm@email.com', '1234');
+      await AuthService.instance.entrar('adm@email.com', '1234');
       final u = IkAiService.usuarioLogado!;
       expect(u['vontades'], isEmpty);
       expect(u['categoriaPrincipal'], isNull);

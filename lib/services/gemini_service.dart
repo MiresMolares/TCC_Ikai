@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/atividades.dart';
 import '../core/sem_emoji.dart';
+import 'api_client.dart';
 import 'sugestoes_locais.dart';
 
 /// Integração com a API do Google Gemini (REST, generateContent).
@@ -145,12 +146,14 @@ class GeminiService {
     String? modelo,
     EnviarHttp? enviar,
     Duration? limite,
-  })  : _chave = chave ?? _chaveDoAmbiente,
+    ApiClient? api,
+  })  : _api = api ?? ApiClient.instance,
+        _chave = chave ?? _chaveDoAmbiente,
         _modelo = (modelo != null && modelo.isNotEmpty)
             ? modelo
             : _modeloDoAmbiente,
         _enviar = enviar ?? _enviarPadrao,
-        _limite = limite ?? const Duration(seconds: 12);
+        _limite = limite ?? const Duration(seconds: 30);
 
   static const String _chaveDoAmbiente =
       String.fromEnvironment('GEMINI_API_KEY');
@@ -160,17 +163,36 @@ class GeminiService {
   /// Instância usada pelo app.
   static final GeminiService padrao = GeminiService();
 
+  final ApiClient _api;
   final String _chave;
   final String _modelo;
   final EnviarHttp _enviar;
   final Duration _limite;
 
-  bool get configurado => _chave.trim().isNotEmpty;
+  /// Pelo servidor do Ikai: a chave do Gemini fica lá, nunca no app. Vale
+  /// quando o app roda com `API_URL`, a pessoa entrou e o servidor tem chave.
+  bool get _viaServidor =>
+      _api.ativo && _api.token != null && _api.iaNoServidor;
 
-  Uri get _url => Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/'
-        '$_modelo:generateContent',
-      );
+  /// O Gemini pode ser usado: pelo servidor, ou com chave direta no app.
+  bool get configurado => _viaServidor || _chave.trim().isNotEmpty;
+
+  Uri get _url => _viaServidor
+      ? Uri.parse('${_api.baseUrl}/ia/gemini')
+      : Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/'
+          '$_modelo:generateContent',
+        );
+
+  Map<String, String> get _cabecalhos => _viaServidor
+      ? {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${_api.token}',
+        }
+      : {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': _chave,
+        };
 
   /// Nunca lança exceção: sempre devolve 3 sugestões.
   Future<SugestoesIkAi> gerarSugestoes(ContextoSessao ctx) async {
@@ -188,10 +210,7 @@ class GeminiService {
       try {
         final r = await _enviar(
           _url,
-          {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': _chave,
-          },
+          _cabecalhos,
           jsonEncode(montarCorpo(ctx)),
           _limite,
         );
@@ -241,10 +260,7 @@ class GeminiService {
     try {
       final r = await _enviar(
         _url,
-        {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': _chave,
-        },
+        _cabecalhos,
         jsonEncode(montarCorpoConversa(ctx)),
         _limite,
       );
@@ -361,7 +377,7 @@ class GeminiService {
       'contents': contents,
       'generationConfig': {
         'temperature': 0.8,
-        'maxOutputTokens': 2048,
+        'maxOutputTokens': 8192,
         'responseMimeType': 'application/json',
       },
     };
@@ -489,7 +505,7 @@ class GeminiService {
       ],
       'generationConfig': {
         'temperature': 0.7,
-        'maxOutputTokens': 2048,
+        'maxOutputTokens': 8192,
         'responseMimeType': 'application/json',
       },
     };

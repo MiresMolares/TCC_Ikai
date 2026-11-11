@@ -273,12 +273,13 @@ class _EditarPerfilPageState extends State<EditarPerfilPage> {
     super.dispose();
   }
 
-  void _salvar() {
+  Future<void> _salvar() async {
     // O e-mail identifica a conta e os dados salvos dela, por isso não muda.
-    final erro = AuthService.instance.atualizarPerfil(
+    final erro = await AuthService.instance.atualizarPerfil(
       nome: _nome.text,
       email: AuthService.instance.usuarioAtual?.email ?? _email.text,
     );
+    if (!mounted) return;
     if (erro != null) {
       mostrarAviso(context, erro);
       return;
