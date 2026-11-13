@@ -103,7 +103,8 @@ export function rotasAuth({ db, config }) {
     res.status(204).end();
   });
 
-  // Exclusão de conta: apaga a pessoa e tudo o que ela escreveu.
+  // Exclusão de conta: apaga a pessoa e tudo o que ela escreveu ou registrou
+  // (artigos, comunidades, mensagens, sessões, notificações e preferências).
   r.delete('/meus-dados', login, async (req, res) => {
     const id = req.usuario._id;
     const minhas = await db.comunidades.find({ criadorId: id }, { projection: { _id: 1 } }).toArray();
@@ -112,6 +113,9 @@ export function rotasAuth({ db, config }) {
     await db.comunidades.deleteMany({ criadorId: id });
     await db.posts.deleteMany({ autorId: id });
     await db.artigos.deleteMany({ autorId: id });
+    await db.sessoes.deleteMany({ usuarioId: id });
+    await db.notificacoes.deleteMany({ usuarioId: id });
+    await db.preferencias.deleteOne({ _id: id });
     await db.usuarios.deleteOne({ _id: id });
     res.status(204).end();
   });

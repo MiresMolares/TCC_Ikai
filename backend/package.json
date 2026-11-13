@@ -1,7 +1,7 @@
 {
   "name": "ikai-api",
   "version": "1.0.0",
-  "description": "API do Ikai (Node.js + Express + MongoDB): login, artigos, comunidades, mensagens e proxy do Gemini.",
+  "description": "API do Ikai (Node.js + Express + MongoDB): login, sessões, preferências, notificações, artigos, comunidades, mensagens e proxy do Gemini.",
   "private": true,
   "type": "module",
   "engines": {
@@ -10,7 +10,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test --test-concurrency=1 \"test/*.test.js\""
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "db:init": "node scripts/init-db.js",
+    "db:demo": "node scripts/seed-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

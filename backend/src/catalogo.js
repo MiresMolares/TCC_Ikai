@@ -46,3 +46,50 @@ export const LIMITES = {
   comunidadesPorDia: 5,
   iaPorHora: 60,
 };
+
+// Títulos e ícones do catálogo. Espelham lib/pages_configurar/objetivo_*.dart
+// (o ícone é o nome do Icons.* do Flutter). Servem de semente da coleção
+// `objetivos` e `categorias` (src/db.js, sincronizarCatalogo).
+export const OBJETIVOS_INFO = {
+  ver_conteudo: { titulo: "Ver conteúdo", icone: 'play_circle_outline' },
+  ler: { titulo: "Ler", icone: 'menu_book_outlined' },
+  estudar: { titulo: "Estudar", icone: 'school_outlined' },
+};
+
+export const CATEGORIAS_INFO = {
+  ver_cientifico: { titulo: "Científico", icone: 'science_outlined' },
+  ver_cultura: { titulo: "Cultura", icone: 'museum_outlined' },
+  ver_jogos: { titulo: "Jogos", icone: 'sports_esports_outlined' },
+  ver_noticia: { titulo: "Notícias", icone: 'newspaper_outlined' },
+  ver_esporte: { titulo: "Esporte", icone: 'sports_soccer_outlined' },
+  ver_curiosidades: { titulo: "Curiosidades", icone: 'lightbulb_outline' },
+  ler_romance: { titulo: "Romance", icone: 'favorite_border' },
+  ler_fantasia: { titulo: "Fantasia", icone: 'auto_awesome_outlined' },
+  ler_suspense: { titulo: "Suspense", icone: 'visibility_outlined' },
+  ler_fc: { titulo: "Ficção Científica", icone: 'rocket_launch_outlined' },
+  ler_horror: { titulo: "Horror", icone: 'nights_stay_outlined' },
+  ler_terror: { titulo: "Terror", icone: 'warning_amber_outlined' },
+  ler_religioso: { titulo: "Religioso", icone: 'menu_book_outlined' },
+  ler_distopia: { titulo: "Distopia", icone: 'public_off_outlined' },
+  ler_aventura: { titulo: "Aventura", icone: 'explore_outlined' },
+  ler_dp: { titulo: "Desenvolvimento Pessoal", icone: 'psychology_outlined' },
+  ler_tecnico: { titulo: "Técnico", icone: 'build_outlined' },
+  ler_biografia: { titulo: "Biografia", icone: 'person_outline' },
+  estudar_matematica: { titulo: "Matemática", icone: 'calculate_outlined' },
+  estudar_lp: { titulo: "LP: Língua Portuguesa", icone: 'menu_book_outlined' },
+  estudar_ingles: { titulo: "Inglês", icone: 'translate_outlined' },
+  estudar_artes: { titulo: "Artes", icone: 'palette_outlined' },
+  estudar_historia: { titulo: "História", icone: 'account_balance_outlined' },
+  estudar_geografia: { titulo: "Geografia", icone: 'public_outlined' },
+  estudar_filosofia: { titulo: "Filosofia", icone: 'psychology_outlined' },
+  estudar_sociologia: { titulo: "Sociologia", icone: 'groups_outlined' },
+  estudar_ef: { titulo: "Educação Física", icone: 'fitness_center_outlined' },
+  estudar_biologia: { titulo: "Biologia", icone: 'eco_outlined' },
+  estudar_fisica: { titulo: "Física", icone: 'bolt_outlined' },
+  estudar_quimica: { titulo: "Química", icone: 'science_outlined' },
+};
+
+/** Objetivo ao qual uma categoria pertence (ex.: estudar_ingles -> estudar). */
+export const OBJETIVO_DA_CATEGORIA = Object.fromEntries(
+  Object.entries(OBJETIVOS).flatMap(([o, lista]) => lista.map((c) => [c, o])),
+);

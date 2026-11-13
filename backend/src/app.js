@@ -5,6 +5,10 @@ import { ErroHttp } from './erros.js';
 import { rotasAuth } from './rotas/auth.js';
 import { rotasConteudo } from './rotas/conteudo.js';
 import { rotasIa } from './rotas/ia.js';
+import { rotasCatalogo } from './rotas/catalogo.js';
+import { rotasSessoes } from './rotas/sessoes.js';
+import { rotasPreferencias } from './rotas/preferencias.js';
+import { rotasNotificacoes } from './rotas/notificacoes.js';
 
 /** Monta o app Express. `db` tem as coleções; `fetchImpl` é trocável nos testes. */
 export function criarApp({ db, config, fetchImpl }) {
@@ -20,6 +24,10 @@ export function criarApp({ db, config, fetchImpl }) {
 
   app.use(rotasAuth({ db, config }));
   app.use(rotasConteudo({ db, config }));
+  app.use(rotasCatalogo({ db, config }));
+  app.use(rotasSessoes({ db, config }));
+  app.use(rotasPreferencias({ db, config }));
+  app.use(rotasNotificacoes({ db, config }));
   app.use(rotasIa({ db, config, fetchImpl }));
 
   app.use((_req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
