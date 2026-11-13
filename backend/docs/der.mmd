@@ -1,0 +1,98 @@
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#F3E4C9','primaryTextColor':'#2C3A1E','primaryBorderColor':'#365124','lineColor':'#6A6850','fontFamily':'DM Sans, Arial, sans-serif','fontSize':'16px','attributeBackgroundColorOdd':'#FBF3E2','attributeBackgroundColorEven':'#F3E4C9'}}}%%
+erDiagram
+  usuarios ||--o{ sessoes : inicia
+  usuarios ||--o| preferencias : configura
+  usuarios ||--o{ notificacoes : recebe
+  usuarios ||--o{ artigos : escreve
+  usuarios ||--o{ comunidades : cria
+  usuarios ||--o{ posts : publica
+  comunidades ||--o{ posts : contem
+  objetivos ||--o{ categorias : possui
+  objetivos ||--o{ sessoes : "escolhido em"
+  categorias }o--o{ sessoes : "escolhidas em"
+
+  usuarios {
+    ObjectId _id PK
+    string nome "2 a 80"
+    string email UK "unico"
+    string senhaHash "bcrypt"
+    string fotoUrl "opcional"
+    date criadoEm
+  }
+  objetivos {
+    string _id PK "ver_conteudo, ler, estudar"
+    string titulo
+    string icone
+    int ordem
+  }
+  categorias {
+    string _id PK "ex: estudar_ingles"
+    string objetivoId FK
+    string titulo
+    string icone
+    int ordem
+  }
+  sessoes {
+    ObjectId _id PK
+    ObjectId usuarioId FK
+    string objetivoId FK
+    string[] categoriaIds FK "1 a 5"
+    int duracaoSegundos "1 a 10800"
+    date iniciadaEm
+    date expiraEm
+    date encerradaEm "nulo se ativa"
+    string estado "ativa | expirada"
+  }
+  preferencias {
+    ObjectId _id PK "= usuarioId"
+    string tema "claro|escuro|sistema"
+    bool altoContraste
+    double tamanhoTexto "0,8 a 1,4"
+    bool notificacoes
+    bool lembretes
+    bool sons
+    bool vibracao
+    int nivelConteudo "0 a 3"
+    bool iaAutorizada "nulo ou bool"
+    int metaDiariaMin "nulo ou 1 a 1440"
+    date atualizadoEm
+  }
+  notificacoes {
+    ObjectId _id PK
+    ObjectId usuarioId FK
+    string tipo "lembrete|conquista|comunidade|sistema"
+    string titulo
+    string descricao
+    date criadaEm "expira em 90 dias"
+    bool lida
+  }
+  artigos {
+    string _id PK
+    ObjectId autorId FK
+    string objetivo FK
+    string categoria FK
+    int nivel "1 a 3"
+    string titulo
+    string resumo
+    string[] tags
+    string[] paragrafos
+    date criadoEm
+  }
+  comunidades {
+    string _id PK
+    ObjectId criadorId FK
+    string nome
+    string nomeChave UK
+    string descricao
+    string icone
+    string[] categorias FK
+    string[] regras
+    date criadoEm
+  }
+  posts {
+    string _id PK
+    string comunidadeId FK
+    ObjectId autorId FK
+    string texto "3 a 500"
+    date criadoEm
+  }

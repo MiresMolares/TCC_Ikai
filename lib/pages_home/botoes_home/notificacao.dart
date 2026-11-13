@@ -1,32 +1,61 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
+import '../../services/config_service.dart';
+import '../../widgets/estilo.dart';
 
-class notificacaoPage extends StatefulWidget{
-  const notificacaoPage({super.key});
-
-  @override
-  State<notificacaoPage> createState() => _notificacaoPageState();
-}
-
-class _notificacaoPageState extends State<notificacaoPage> {
-
+/// Caixa de notificações. Por padrão o Ikai não envia notificações
+/// (Pilar 2), então normalmente esta tela está vazia de propósito.
+class NotificacaoPage extends StatelessWidget {
+  const NotificacaoPage({super.key});
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
+    final ligadas = ConfigService.instance.notificacoes;
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 237, 241, 243),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(24),
-          
+      backgroundColor: Cores.fundo,
+      appBar: AppBar(
+        title: const Text('Notificações'),
+        backgroundColor: Cores.fundo,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-           
-
-            ]
+              Icon(
+                ligadas
+                    ? Icons.notifications_none_rounded
+                    : Icons.notifications_off_outlined,
+                size: 56,
+                color: Cores.verde,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                ligadas
+                    ? 'Nenhuma notificação por enquanto'
+                    : 'As notificações estão desligadas',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Cores.titulo,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ligadas
+                    ? 'Quando houver algo importante, ele aparece aqui, '
+                        'sem alertas insistentes.'
+                    : 'O Ikai só avisa você se você quiser. Para ligar, '
+                        'vá em Perfil, Configurações.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14, color: Cores.subtitulo),
+              ),
+            ],
           ),
         ),
-      );
-    }
+      ),
+    );
   }
+}
