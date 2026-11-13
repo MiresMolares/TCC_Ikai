@@ -12,7 +12,7 @@
 ## Como rodar com o banco
 1. Instale Node 22+ e tenha um MongoDB (local ou um cluster gratuito do MongoDB Atlas).
 2. `cd backend && cp .env.example .env` e edite: `MONGODB_URI`, `JWT_SECRET` (texto longo e aleatório) e, para a IA, `GEMINI_API_KEY`.
-3. `npm install` e `npm start` (porta 3000; `GET /saude` confere). `npm test` roda 60 testes contra um MongoDB real (`MONGODB_URI=...`).
+3. `npm install` e `npm start` (porta 3000; `GET /saude` confere). `npm test` roda 64 testes contra um MongoDB real (`MONGODB_URI=...`).
    O banco do app (9 coleções, validação, índices, rotas de sessão, preferências e notificações) está descrito em `backend/docs/BANCO_DE_DADOS.md`; `npm run db:init` prepara o banco e `npm run db:demo` grava dados de exemplo.
 4. No app, no `env.json` coloque `"API_URL": "http://localhost:3000"` (veja `env.json.example`) e rode `flutter run -d chrome --dart-define-from-file=env.json`. No Codespaces use o endereço público da porta 3000 (porta pública) em vez de localhost. Sem `API_URL` o app roda no modo local; sem `GEMINI_API_KEY` no `env.json` ele usa a chave do servidor.
 5. Para o app no navegador falar com a API, deixe `CORS_ORIGEM=*` em desenvolvimento; em produção coloque o endereço do app.
@@ -43,7 +43,7 @@ Não consegui testar o Gemini de verdade aqui (sem chave nem acesso à rede): a 
 1. Na raiz do projeto, APAGUE `lib/` e `test/` e copie as deste pacote no lugar. Mantenha `assets/`.
 2. `flutter pub get`
 3. `flutter run` (sem Gemini: as sugestões da Ik AI são geradas no aparelho). No navegador: `flutter run -d chrome`. Para ligar o Gemini, veja a seção abaixo.
-4. `flutter test` (15 arquivos, 265 testes de lógica).
+4. `flutter test` (15 arquivos, 266 testes de lógica).
 
 Conta de teste: `adm@email.com` / `1234`.
 

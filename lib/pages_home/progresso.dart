@@ -17,6 +17,7 @@ class ProgressoPage extends StatelessWidget {
     'ver_conteudo': 'Ver conteúdo',
     'ler': 'Ler',
     'estudar': 'Estudar',
+    'oficio': 'Aprender um ofício',
   };
 
   @override

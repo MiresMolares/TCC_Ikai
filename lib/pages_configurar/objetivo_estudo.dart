@@ -63,6 +63,26 @@ const List<Categoria> _materias = [
     titulo: 'Química',
     icone: Icons.science_outlined,
   ),
+  Categoria(
+    id: 'estudar_programacao',
+    titulo: 'Programação',
+    icone: Icons.code_outlined,
+  ),
+  Categoria(
+    id: 'estudar_espanhol',
+    titulo: 'Espanhol',
+    icone: Icons.translate_outlined,
+  ),
+  Categoria(
+    id: 'estudar_redacao',
+    titulo: 'Redação',
+    icone: Icons.edit_note_outlined,
+  ),
+  Categoria(
+    id: 'estudar_financas',
+    titulo: 'Educação financeira',
+    icone: Icons.savings_outlined,
+  ),
 ];
 
 final Objetivo objetivoEstudo = Objetivo(

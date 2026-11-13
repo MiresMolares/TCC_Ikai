@@ -69,6 +69,19 @@ void main() {
       }
     });
 
+    test('o catálogo tem 4 objetivos e 60 categorias com ids únicos', () {
+      expect(todosOsObjetivos.map((o) => o.id).toList(),
+          ['ver_conteudo', 'ler', 'estudar', 'oficio']);
+      expect(todosOsObjetivos.map((o) => o.categorias.length).toList(),
+          [16, 16, 16, 12]);
+      final ids = [
+        for (final o in todosOsObjetivos) ...o.categorias.map((c) => c.id),
+      ];
+      expect(ids.toSet().length, ids.length);
+      final artigos = artigosDados.map((a) => a.id).toList();
+      expect(artigos.toSet().length, artigos.length);
+    });
+
     test('toda categoria tem pelo menos um artigo (nenhum feed vazio)', () {
       for (final o in todosOsObjetivos) {
         for (final cat in o.categorias) {

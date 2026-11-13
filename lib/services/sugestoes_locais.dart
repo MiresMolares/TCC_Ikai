@@ -119,7 +119,9 @@ class SugestoesLocais {
         ? 'Leia um capítulo de um livro físico, longe das telas.'
         : o.contains('estudar')
             ? 'Faça exercícios no papel sobre o que acabou de estudar.'
-            : 'Anote uma ideia do que viu hoje e conte para alguém.';
+            : o.contains('oficio')
+                ? 'Pratique por quinze minutos com as mãos, sem tela, o que acabou de aprender.'
+                : 'Anote uma ideia do que viu hoje e conte para alguém.';
     return [
       porObjetivo,
       'Levante, beba água e alongue o corpo por cinco minutos.',

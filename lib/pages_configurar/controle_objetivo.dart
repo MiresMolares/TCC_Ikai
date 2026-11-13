@@ -11,6 +11,7 @@ import '../services/tempo_diario.dart';
 import './objetivo_conteudo.dart';
 import './objetivo_estudo.dart';
 import './objetivo_leitura.dart';
+import './objetivo_oficio.dart';
 
 export '../core/duracao.dart';
 
@@ -57,6 +58,7 @@ List<Objetivo> get todosOsObjetivos => [
       objetivoConteudo,
       objetivoLeitura,
       objetivoEstudo,
+      objetivoOficio,
     ];
 
 Objetivo? buscarObjetivo(String? id) {

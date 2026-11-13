@@ -42,7 +42,7 @@ Tipos do MongoDB. **Obr.** = obrigatório.
 ### `objetivos`
 | Campo | Tipo | Obr. | Regra |
 |---|---|---|---|
-| `_id` | string | sim | `ver_conteudo`, `ler` ou `estudar`. |
+| `_id` | string | sim | `ver_conteudo`, `ler`, `estudar` ou `oficio`. |
 | `titulo` | string | sim | Até 40 caracteres. |
 | `icone` | string | sim | Nome do `Icons.*` do Flutter. |
 | `ordem` | int | sim | 1 a 99. |
@@ -50,7 +50,7 @@ Tipos do MongoDB. **Obr.** = obrigatório.
 ### `categorias`
 | Campo | Tipo | Obr. | Regra |
 |---|---|---|---|
-| `_id` | string | sim | Uma das 30 categorias do catálogo (ex.: `estudar_ingles`). |
+| `_id` | string | sim | Uma das 60 categorias do catálogo (ex.: `estudar_ingles`). |
 | `objetivoId` | string | sim | Aponta para `objetivos._id`. |
 | `titulo` | string | sim | Até 60 caracteres. |
 | `icone` | string | sim | |
@@ -143,7 +143,7 @@ cp .env.example .env        # preencha MONGODB_URI, MONGODB_DB e JWT_SECRET
 npm run db:init             # cria coleções, regras, índices e o catálogo (pode repetir)
 npm run db:demo             # opcional: dados de exemplo (ana@exemplo.com / senha-demo-123)
 npm start                   # API em http://localhost:3000
-npm test                    # 60 testes contra um MongoDB de verdade
+npm test                    # 64 testes contra um MongoDB de verdade
 ```
 
 O servidor também prepara o banco ao iniciar, então `db:init` só é necessário para criar tudo antes de subir a API.

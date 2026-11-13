@@ -3,18 +3,28 @@
 export const OBJETIVOS = {
   ver_conteudo: [
     'ver_cientifico', 'ver_cultura', 'ver_jogos', 'ver_noticia',
-    'ver_esporte', 'ver_curiosidades',
+    'ver_esporte', 'ver_curiosidades', 'ver_natureza', 'ver_tecnologia',
+    'ver_espaco', 'ver_musica', 'ver_cinema', 'ver_gastronomia',
+    'ver_viagens', 'ver_arquitetura', 'ver_saude', 'ver_economia',
   ],
   ler: [
     'ler_romance', 'ler_fantasia', 'ler_suspense', 'ler_fc', 'ler_horror',
     'ler_terror', 'ler_religioso', 'ler_distopia', 'ler_aventura', 'ler_dp',
-    'ler_tecnico', 'ler_biografia',
+    'ler_tecnico', 'ler_biografia', 'ler_poesia', 'ler_classicos',
+    'ler_ficcao_historica', 'ler_cronicas',
   ],
   estudar: [
     'estudar_matematica', 'estudar_lp', 'estudar_ingles', 'estudar_artes',
     'estudar_historia', 'estudar_geografia', 'estudar_filosofia',
-    'estudar_sociologia', 'estudar_ef', 'estudar_biologia', 'estudar_fisica',
-    'estudar_quimica',
+    'estudar_sociologia', 'estudar_ef', 'estudar_biologia',
+    'estudar_fisica', 'estudar_quimica', 'estudar_programacao',
+    'estudar_espanhol', 'estudar_redacao', 'estudar_financas',
+  ],
+  oficio: [
+    'oficio_marcenaria', 'oficio_eletrica', 'oficio_hidraulica',
+    'oficio_culinaria', 'oficio_panificacao', 'oficio_costura',
+    'oficio_jardinagem', 'oficio_mecanica', 'oficio_fotografia',
+    'oficio_desenho', 'oficio_artesanato', 'oficio_instrumento',
   ],
 };
 
@@ -54,6 +64,7 @@ export const OBJETIVOS_INFO = {
   ver_conteudo: { titulo: "Ver conteúdo", icone: 'play_circle_outline' },
   ler: { titulo: "Ler", icone: 'menu_book_outlined' },
   estudar: { titulo: "Estudar", icone: 'school_outlined' },
+  oficio: { titulo: "Aprender um ofício", icone: 'handyman_outlined' },
 };
 
 export const CATEGORIAS_INFO = {
@@ -63,6 +74,16 @@ export const CATEGORIAS_INFO = {
   ver_noticia: { titulo: "Notícias", icone: 'newspaper_outlined' },
   ver_esporte: { titulo: "Esporte", icone: 'sports_soccer_outlined' },
   ver_curiosidades: { titulo: "Curiosidades", icone: 'lightbulb_outline' },
+  ver_natureza: { titulo: "Natureza e animais", icone: 'eco_outlined' },
+  ver_tecnologia: { titulo: "Tecnologia", icone: 'computer_outlined' },
+  ver_espaco: { titulo: "Espaço", icone: 'rocket_launch_outlined' },
+  ver_musica: { titulo: "Música", icone: 'library_music_outlined' },
+  ver_cinema: { titulo: "Cinema e séries", icone: 'movie_outlined' },
+  ver_gastronomia: { titulo: "Gastronomia", icone: 'restaurant_outlined' },
+  ver_viagens: { titulo: "Viagens e lugares", icone: 'flight_outlined' },
+  ver_arquitetura: { titulo: "Arquitetura e cidades", icone: 'apartment_outlined' },
+  ver_saude: { titulo: "Saúde e bem-estar", icone: 'spa_outlined' },
+  ver_economia: { titulo: "Dinheiro e economia", icone: 'savings_outlined' },
   ler_romance: { titulo: "Romance", icone: 'favorite_border' },
   ler_fantasia: { titulo: "Fantasia", icone: 'auto_awesome_outlined' },
   ler_suspense: { titulo: "Suspense", icone: 'visibility_outlined' },
@@ -75,6 +96,10 @@ export const CATEGORIAS_INFO = {
   ler_dp: { titulo: "Desenvolvimento Pessoal", icone: 'psychology_outlined' },
   ler_tecnico: { titulo: "Técnico", icone: 'build_outlined' },
   ler_biografia: { titulo: "Biografia", icone: 'person_outline' },
+  ler_poesia: { titulo: "Poesia", icone: 'auto_stories_outlined' },
+  ler_classicos: { titulo: "Clássicos", icone: 'history_edu_outlined' },
+  ler_ficcao_historica: { titulo: "Ficção histórica", icone: 'castle_outlined' },
+  ler_cronicas: { titulo: "Crônicas e contos", icone: 'edit_note_outlined' },
   estudar_matematica: { titulo: "Matemática", icone: 'calculate_outlined' },
   estudar_lp: { titulo: "LP: Língua Portuguesa", icone: 'menu_book_outlined' },
   estudar_ingles: { titulo: "Inglês", icone: 'translate_outlined' },
@@ -87,6 +112,22 @@ export const CATEGORIAS_INFO = {
   estudar_biologia: { titulo: "Biologia", icone: 'eco_outlined' },
   estudar_fisica: { titulo: "Física", icone: 'bolt_outlined' },
   estudar_quimica: { titulo: "Química", icone: 'science_outlined' },
+  estudar_programacao: { titulo: "Programação", icone: 'code_outlined' },
+  estudar_espanhol: { titulo: "Espanhol", icone: 'translate_outlined' },
+  estudar_redacao: { titulo: "Redação", icone: 'edit_note_outlined' },
+  estudar_financas: { titulo: "Educação financeira", icone: 'savings_outlined' },
+  oficio_marcenaria: { titulo: "Marcenaria", icone: 'carpenter_outlined' },
+  oficio_eletrica: { titulo: "Elétrica residencial", icone: 'electrical_services_outlined' },
+  oficio_hidraulica: { titulo: "Hidráulica", icone: 'plumbing_outlined' },
+  oficio_culinaria: { titulo: "Culinária", icone: 'restaurant_menu_outlined' },
+  oficio_panificacao: { titulo: "Panificação", icone: 'bakery_dining_outlined' },
+  oficio_costura: { titulo: "Costura", icone: 'checkroom_outlined' },
+  oficio_jardinagem: { titulo: "Jardinagem", icone: 'yard_outlined' },
+  oficio_mecanica: { titulo: "Mecânica", icone: 'car_repair_outlined' },
+  oficio_fotografia: { titulo: "Fotografia", icone: 'photo_camera_outlined' },
+  oficio_desenho: { titulo: "Desenho", icone: 'draw_outlined' },
+  oficio_artesanato: { titulo: "Artesanato", icone: 'brush_outlined' },
+  oficio_instrumento: { titulo: "Tocar um instrumento", icone: 'piano_outlined' },
 };
 
 /** Objetivo ao qual uma categoria pertence (ex.: estudar_ingles -> estudar). */

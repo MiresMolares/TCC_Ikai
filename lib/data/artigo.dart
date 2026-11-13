@@ -6,7 +6,7 @@ class Artigo {
   /// Único em todo o app. Ex.: 'a031'.
   final String id;
 
-  /// Id do objetivo: 'ver_conteudo', 'ler' ou 'estudar'.
+  /// Id do objetivo: 'ver_conteudo', 'ler', 'estudar' ou 'oficio'.
   final String objetivoId;
 
   /// Id da categoria dentro do objetivo. Ex.: 'ler_romance'.

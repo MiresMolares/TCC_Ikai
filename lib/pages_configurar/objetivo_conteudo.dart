@@ -34,6 +34,56 @@ const List<Categoria> _categoriasConteudo = [
     titulo: 'Curiosidades',
     icone: Icons.lightbulb_outline,
   ),
+  Categoria(
+    id: 'ver_natureza',
+    titulo: 'Natureza e animais',
+    icone: Icons.eco_outlined,
+  ),
+  Categoria(
+    id: 'ver_tecnologia',
+    titulo: 'Tecnologia',
+    icone: Icons.computer_outlined,
+  ),
+  Categoria(
+    id: 'ver_espaco',
+    titulo: 'Espaço',
+    icone: Icons.rocket_launch_outlined,
+  ),
+  Categoria(
+    id: 'ver_musica',
+    titulo: 'Música',
+    icone: Icons.library_music_outlined,
+  ),
+  Categoria(
+    id: 'ver_cinema',
+    titulo: 'Cinema e séries',
+    icone: Icons.movie_outlined,
+  ),
+  Categoria(
+    id: 'ver_gastronomia',
+    titulo: 'Gastronomia',
+    icone: Icons.restaurant_outlined,
+  ),
+  Categoria(
+    id: 'ver_viagens',
+    titulo: 'Viagens e lugares',
+    icone: Icons.flight_outlined,
+  ),
+  Categoria(
+    id: 'ver_arquitetura',
+    titulo: 'Arquitetura e cidades',
+    icone: Icons.apartment_outlined,
+  ),
+  Categoria(
+    id: 'ver_saude',
+    titulo: 'Saúde e bem-estar',
+    icone: Icons.spa_outlined,
+  ),
+  Categoria(
+    id: 'ver_economia',
+    titulo: 'Dinheiro e economia',
+    icone: Icons.savings_outlined,
+  ),
 ];
 
 final Objetivo objetivoConteudo = Objetivo(

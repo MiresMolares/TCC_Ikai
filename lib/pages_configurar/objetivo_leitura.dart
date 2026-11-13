@@ -64,6 +64,26 @@ const List<Categoria> _categoriasLeitura = [
     titulo: 'Biografia',
     icone: Icons.person_outline,
   ),
+  Categoria(
+    id: 'ler_poesia',
+    titulo: 'Poesia',
+    icone: Icons.auto_stories_outlined,
+  ),
+  Categoria(
+    id: 'ler_classicos',
+    titulo: 'Clássicos',
+    icone: Icons.history_edu_outlined,
+  ),
+  Categoria(
+    id: 'ler_ficcao_historica',
+    titulo: 'Ficção histórica',
+    icone: Icons.castle_outlined,
+  ),
+  Categoria(
+    id: 'ler_cronicas',
+    titulo: 'Crônicas e contos',
+    icone: Icons.edit_note_outlined,
+  ),
 ];
 
 final Objetivo objetivoLeitura = Objetivo(

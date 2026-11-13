@@ -7,6 +7,8 @@ import { ObjectId } from 'mongodb';
 import { criarApp } from '../src/app.js';
 import { lerConfig } from '../src/config.js';
 import { conectar, sincronizarCatalogo } from '../src/db.js';
+import { OBJETIVOS, CATEGORIAS_INFO, OBJETIVOS_INFO } from '../src/catalogo.js';
+import { existsSync, readFileSync } from 'node:fs';
 
 let db, servidor, base;
 
@@ -92,12 +94,12 @@ describe('estrutura do banco', () => {
     assert.deepEqual(unica.partialFilterExpression, { estado: 'ativa' });
   });
 
-  test('o catálogo é gravado (3 objetivos e 30 categorias) e sincronizar de novo não duplica', async () => {
-    assert.equal(await db.objetivos.countDocuments(), 3);
-    assert.equal(await db.categorias.countDocuments(), 30);
+  test('o catálogo é gravado (4 objetivos e 60 categorias) e sincronizar de novo não duplica', async () => {
+    assert.equal(await db.objetivos.countDocuments(), 4);
+    assert.equal(await db.categorias.countDocuments(), 60);
     await sincronizarCatalogo(db);
-    assert.equal(await db.objetivos.countDocuments(), 3);
-    assert.equal(await db.categorias.countDocuments(), 30);
+    assert.equal(await db.objetivos.countDocuments(), 4);
+    assert.equal(await db.categorias.countDocuments(), 60);
     const c = await db.categorias.findOne({ _id: 'estudar_ingles' });
     assert.equal(c.objetivoId, 'estudar');
     assert.equal(c.titulo, 'Inglês');
@@ -137,12 +139,12 @@ describe('catálogo (rotas)', () => {
     assert.equal((await chamar('GET', '/objetivos')).status, 401);
   });
 
-  test('GET /objetivos traz os 3 objetivos com as suas categorias, em ordem', async () => {
+  test('GET /objetivos traz os 4 objetivos com as suas categorias, em ordem', async () => {
     const { token } = await novaConta();
     const r = await chamar('GET', '/objetivos', undefined, token);
     assert.equal(r.status, 200);
-    assert.deepEqual(r.json.map((o) => o.id), ['ver_conteudo', 'ler', 'estudar']);
-    assert.deepEqual(r.json.map((o) => o.categorias.length), [6, 12, 12]);
+    assert.deepEqual(r.json.map((o) => o.id), ['ver_conteudo', 'ler', 'estudar', 'oficio']);
+    assert.deepEqual(r.json.map((o) => o.categorias.length), [16, 16, 16, 12]);
     assert.equal(r.json[2].titulo, 'Estudar');
     assert.deepEqual(Object.keys(r.json[2].categorias[0]), ['id', 'objetivo', 'titulo', 'icone']);
     assert.equal(r.json[2].categorias[0].id, 'estudar_matematica');
@@ -152,7 +154,7 @@ describe('catálogo (rotas)', () => {
     const { token } = await novaConta();
     const ok = await chamar('GET', '/objetivos/ler/categorias', undefined, token);
     assert.equal(ok.status, 200);
-    assert.equal(ok.json.length, 12);
+    assert.equal(ok.json.length, 16);
     assert.ok(ok.json.every((c) => c.objetivo === 'ler'));
     const nao = await chamar('GET', '/objetivos/danca/categorias', undefined, token);
     assert.equal(nao.status, 404);
@@ -526,8 +528,8 @@ describe('atualização de um banco antigo (v6)', () => {
     try {
       assert.equal(await novo.usuarios.countDocuments({ email: 'bia@exemplo.com' }), 1);
       assert.equal(await novo.artigos.countDocuments(), 1); // o documento antigo continua lá
-      assert.equal(await novo.objetivos.countDocuments(), 3);
-      assert.equal(await novo.categorias.countDocuments(), 30);
+      assert.equal(await novo.objetivos.countDocuments(), 4);
+      assert.equal(await novo.categorias.countDocuments(), 60);
       const nomes = (await novo.sessoes.indexes()).map((i) => i.name);
       assert.ok(nomes.includes('uma_sessao_ativa'));
       // e rodar de novo (reinício do servidor) também não dá erro
@@ -538,4 +540,28 @@ describe('atualização de um banco antigo (v6)', () => {
       await novo.cliente.close();
     }
   });
+});
+
+// O catálogo do servidor é uma cópia do que está no app (lib/pages_configurar).
+// Se o app estiver na pasta de cima (como no repositório), confere item a item.
+const PASTA_APP = new URL('../../lib/pages_configurar/', import.meta.url);
+const ARQUIVOS_APP = {
+  ver_conteudo: 'objetivo_conteudo.dart', ler: 'objetivo_leitura.dart',
+  estudar: 'objetivo_estudo.dart', oficio: 'objetivo_oficio.dart',
+};
+
+describe('catálogo igual ao do app', { skip: !existsSync(new URL('objetivo_oficio.dart', PASTA_APP)) }, () => {
+  for (const [objetivo, arquivo] of Object.entries(ARQUIVOS_APP)) {
+    test(`${objetivo}: mesmas categorias, títulos e ordem`, () => {
+      const dart = readFileSync(new URL(arquivo, PASTA_APP), 'utf8');
+      const itens = [...dart.matchAll(/Categoria\(\s*id: '(\w+)',\s*titulo: '([^']+)',\s*icone: Icons\.(\w+),/g)];
+      assert.deepEqual(itens.map((m) => m[1]), OBJETIVOS[objetivo]);
+      for (const [, id, titulo, icone] of itens) {
+        assert.deepEqual(CATEGORIAS_INFO[id], { titulo, icone }, id);
+      }
+      const o = dart.match(/Objetivo\(\s*id: '(\w+)',\s*titulo: '([^']+)',\s*icone: Icons\.(\w+),/);
+      assert.equal(o[1], objetivo);
+      assert.deepEqual(OBJETIVOS_INFO[objetivo], { titulo: o[2], icone: o[3] });
+    });
+  }
 });

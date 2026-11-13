@@ -153,7 +153,7 @@ class ProgressoService extends ChangeNotifier {
 
   List<Conquista> conquistas({required int totalSalvos, int diasNaMeta = 0}) {
     final porObjetivo = lidosPorObjetivo();
-    final tresCaminhos = ['ver_conteudo', 'ler', 'estudar']
+    final quatroCaminhos = ['ver_conteudo', 'ler', 'estudar', 'oficio']
         .every((o) => (porObjetivo[o] ?? 0) >= 1);
     return [
       Conquista(
@@ -169,10 +169,10 @@ class ProgressoService extends ChangeNotifier {
         desbloqueada: totalLidos >= 5,
       ),
       Conquista(
-        id: 'tres_caminhos',
-        titulo: 'Três caminhos',
+        id: 'quatro_caminhos',
+        titulo: 'Quatro caminhos',
         descricao: 'Leia ao menos um artigo em cada modo.',
-        desbloqueada: tresCaminhos,
+        desbloqueada: quatroCaminhos,
       ),
       Conquista(
         id: 'tempo_bem_escolhido',
