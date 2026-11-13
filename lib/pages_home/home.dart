@@ -13,6 +13,7 @@ import '../widgets/cartao_checkin.dart';
 import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
 import '../widgets/navegador.dart';
+import '../widgets/paisagem.dart';
 import '../widgets/seletor_nivel.dart';
 import 'botoes_home/notificacao.dart';
 import 'biblioteca.dart';
@@ -144,6 +145,7 @@ class _InicioTabState extends State<InicioTab> {
 
   Widget _construir(BuildContext context) {
     final nome = AuthService.instance.usuarioAtual?.primeiroNome ?? '';
+    final tema = temaDoObjetivo(_c.objetivo?.id);
     final nivel = ConfigService.instance.nivelConteudo;
     final semFiltro = ArtigosRepositorio.feedDaSessao(
       _c.objetivo?.id,
@@ -162,23 +164,29 @@ class _InicioTabState extends State<InicioTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        _Cabecalho(nome: nome),
+        _Cabecalho(nome: nome, tema: tema, objetivo: _c.objetivo?.titulo),
         const SizedBox(height: 20),
         _CampoBuscaFalso(aoTocar: widget.aoBuscar),
         const SizedBox(height: 20),
         const CartaoCheckIn(),
         const CartaoUsoSemanal(),
-        const _CartaoMeta(),
+        _CartaoMeta(tema: tema),
         const SizedBox(height: 12),
         const _CartaoIkAi(),
         const SizedBox(height: 24),
-        const Text(
-          'Seu feed de hoje',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Cores.titulo,
-          ),
+        Row(
+          children: [
+            Icon(Icons.eco_outlined, size: 22, color: tema.principal),
+            const SizedBox(width: 8),
+            Text(
+              'Seu feed de hoje',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: tema.escuro,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -229,7 +237,7 @@ class _InicioTabState extends State<InicioTab> {
           )
         else
           ListaDeArtigos(artigos: List<Artigo>.of(visiveis)),
-        if (feed.isNotEmpty) const _FimDoFeed(),
+        if (feed.isNotEmpty) _FimDoFeed(tema: tema),
       ],
     );
   }
@@ -263,78 +271,117 @@ class _SemNesteNivel extends StatelessWidget {
   }
 }
 
+/// Faixa do topo: a paisagem do objetivo de hoje, com a saudação por cima.
 class _Cabecalho extends StatelessWidget {
   final String nome;
+  final TemaObjetivo tema;
 
-  const _Cabecalho({required this.nome});
+  /// Título do objetivo escolhido hoje (null enquanto não há escolha).
+  final String? objetivo;
+
+  const _Cabecalho({required this.nome, required this.tema, this.objetivo});
 
   @override
   Widget build(BuildContext context) {
     final inicial = nome.isEmpty ? 'I' : String.fromCharCode(nome.runes.first).toUpperCase();
-    return Row(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Cores.bege,
-            border: Border.all(color: Cores.bege, width: 3),
-          ),
-          child: Text(
-            inicial,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Cores.tituloVerde,
+    return PaisagemView(
+      paisagem: tema.paisagem,
+      altura: 160,
+      raio: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(color: tema.principal, width: 2),
+                  ),
+                  child: Text(
+                    inicial,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: tema.escuro,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Que bom ver você',
+                        style: TextStyle(fontSize: 13, color: tema.escuro),
+                      ),
+                      Text(
+                        nome.isEmpty ? 'Olá' : 'Olá, $nome',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: tema.escuro,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _BotaoQuadrado(
+                  icone: Icons.collections_bookmark_outlined,
+                  dica: 'Biblioteca',
+                  fundo: Colors.white,
+                  cor: tema.principal,
+                  aoTocar: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BibliotecaPage(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _BotaoQuadrado(
+                  icone: Icons.notifications_none_rounded,
+                  dica: 'Notificações',
+                  fundo: Colors.white,
+                  cor: Cores.titulo,
+                  aoTocar: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificacaoPage(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Que bom ver você',
-                style: TextStyle(fontSize: 13, color: Cores.subtitulo),
-              ),
-              Text(
-                nome.isEmpty ? 'Olá' : 'Olá, $nome',
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Cores.titulo,
+            const Spacer(),
+            if (objetivo != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '$objetivo · ${tema.lugar}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: tema.escuro,
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
-        _BotaoQuadrado(
-          icone: Icons.collections_bookmark_outlined,
-          dica: 'Biblioteca',
-          fundo: Cores.verdeClaro,
-          cor: Cores.verde,
-          aoTocar: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const BibliotecaPage()),
-          ),
-        ),
-        const SizedBox(width: 8),
-        _BotaoQuadrado(
-          icone: Icons.notifications_none_rounded,
-          dica: 'Notificações',
-          fundo: Colors.white,
-          cor: Cores.titulo,
-          borda: true,
-          aoTocar: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const NotificacaoPage()),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -344,7 +391,6 @@ class _BotaoQuadrado extends StatelessWidget {
   final String dica;
   final Color fundo;
   final Color cor;
-  final bool borda;
   final VoidCallback aoTocar;
 
   const _BotaoQuadrado({
@@ -353,7 +399,6 @@ class _BotaoQuadrado extends StatelessWidget {
     required this.fundo,
     required this.cor,
     required this.aoTocar,
-    this.borda = false,
   });
 
   @override
@@ -366,13 +411,9 @@ class _BotaoQuadrado extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: aoTocar,
-          child: Container(
+          child: SizedBox(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: borda ? Border.all(color: Cores.borda, width: 2) : null,
-            ),
             child: Icon(icone, color: cor, size: 26),
           ),
         ),
@@ -476,7 +517,9 @@ class _CartaoIkAi extends StatelessWidget {
 /// O tempo de hoje: quanto falta da meta que a PESSOA escolheu, o que ela
 /// está vendo, e as duas saídas: trocar as categorias ou encerrar o dia.
 class _CartaoMeta extends StatelessWidget {
-  const _CartaoMeta();
+  final TemaObjetivo tema;
+
+  const _CartaoMeta({required this.tema});
 
   Future<void> _encerrar(BuildContext context) async {
     final ok = await showDialog<bool>(
@@ -518,8 +561,9 @@ class _CartaoMeta extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Cores.rosado,
+        color: tema.suave,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: tema.claro, width: 2),
       ),
       child: Row(
         children: [
@@ -537,8 +581,8 @@ class _CartaoMeta extends StatelessWidget {
                     child: CircularProgressIndicator(
                       value: 1 - t.fracaoUsada.clamp(0.0, 1.0),
                       strokeWidth: 8,
-                      color: Cores.laranja,
-                      backgroundColor: Cores.bege,
+                      color: tema.principal,
+                      backgroundColor: tema.claro,
                     ),
                   ),
                   Column(
@@ -546,10 +590,10 @@ class _CartaoMeta extends StatelessWidget {
                     children: [
                       Text(
                         formatarHm(t.restanteSeg),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Cores.laranja,
+                          color: tema.principal,
                         ),
                       ),
                       const Text(
@@ -568,12 +612,12 @@ class _CartaoMeta extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'SEU TEMPO DE HOJE',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Cores.verde,
+                    color: tema.principal,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -606,8 +650,13 @@ class _CartaoMeta extends StatelessWidget {
                     _LinkPequeno(
                       'Trocar categorias',
                       () => _trocarCategorias(context),
+                      tema.principal,
                     ),
-                    _LinkPequeno('Encerrar o dia', () => _encerrar(context)),
+                    _LinkPequeno(
+                      'Encerrar o dia',
+                      () => _encerrar(context),
+                      tema.principal,
+                    ),
                   ],
                 ),
               ],
@@ -622,8 +671,9 @@ class _CartaoMeta extends StatelessWidget {
 class _LinkPequeno extends StatelessWidget {
   final String texto;
   final VoidCallback aoTocar;
+  final Color cor;
 
-  const _LinkPequeno(this.texto, this.aoTocar);
+  const _LinkPequeno(this.texto, this.aoTocar, this.cor);
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +683,7 @@ class _LinkPequeno extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        foregroundColor: Cores.laranja,
+        foregroundColor: cor,
       ),
       child: Text(
         texto,
@@ -663,7 +713,9 @@ class _Aviso extends StatelessWidget {
 
 /// O feed acaba. Esse cartão existe para que a pessoa perceba isso.
 class _FimDoFeed extends StatelessWidget {
-  const _FimDoFeed();
+  final TemaObjetivo tema;
+
+  const _FimDoFeed({required this.tema});
 
   @override
   Widget build(BuildContext context) {
@@ -671,23 +723,23 @@ class _FimDoFeed extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Cores.verdeClaro,
+        color: tema.claro,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.check_circle_outline, color: Cores.verde, size: 32),
-          SizedBox(height: 8),
+          Icon(Icons.eco_outlined, color: tema.principal, size: 32),
+          const SizedBox(height: 8),
           Text(
             'Você chegou ao fim do feed',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Cores.tituloVerde,
+              color: tema.escuro,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
+          const SizedBox(height: 4),
+          const Text(
             'Não há mais nada para rolar. Faça uma pausa, ou volte a um '
             'artigo que você quer reler.',
             textAlign: TextAlign.center,

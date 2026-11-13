@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../data/artigo.dart';
+import '../pages_configurar/controle_objetivo.dart' show buscarObjetivo;
 import '../pages_home/artigo_page.dart';
 import '../services/biblioteca_service.dart';
 import '../services/progresso_service.dart';
 import 'estilo.dart';
+import 'paisagem.dart';
 import 'salvar_em_pasta.dart';
 
 /// Cartão de artigo usado no feed, na busca, na biblioteca e nas comunidades.
@@ -23,6 +25,10 @@ class ArtigoCard extends StatelessWidget {
       builder: (context, _) {
         final salvo = BibliotecaService.instance.estaSalvo(artigo.id);
         final lido = ProgressoService.instance.foiLido(artigo.id);
+        final tema = temaDoObjetivo(artigo.objetivoId);
+        final categoria = buscarObjetivo(artigo.objetivoId)
+            ?.buscarCategoria(artigo.categoriaId)
+            ?.titulo;
 
         return Material(
           color: Colors.white,
@@ -39,10 +45,33 @@ class ArtigoCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  SizedBox(
+                    width: 60,
+                    child: PaisagemView(
+                      paisagem: tema.paisagem,
+                      altura: 60,
+                      raio: BorderRadius.circular(14),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (categoria != null) ...[
+                          Text(
+                            categoria.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.6,
+                              color: tema.principal,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                        ],
                         Text(
                           artigo.titulo,
                           style: const TextStyle(
@@ -83,14 +112,14 @@ class ArtigoCard extends StatelessWidget {
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Cores.verdeClaro,
+                                  color: tema.claro,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
                                   t,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    color: Cores.verde,
+                                    color: tema.escuro,
                                   ),
                                 ),
                               ),
@@ -104,7 +133,7 @@ class ArtigoCard extends StatelessWidget {
                     onPressed: () => mostrarSalvarEmPasta(context, artigo),
                     icon: Icon(
                       salvo ? Icons.bookmark : Icons.bookmark_border,
-                      color: salvo ? Cores.laranja : Cores.subtitulo,
+                      color: salvo ? tema.principal : Cores.subtitulo,
                     ),
                   ),
                 ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../widgets/estilo.dart';
+import '../widgets/paisagem.dart';
 import 'login.dart';
 
 /// Tela de abertura com a logo. Segue para o login sozinha.
@@ -40,19 +41,40 @@ class _SplashPageState extends State<SplashPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Cores.bege,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Image.asset(
-            'assets/ikai.png',
-            height: 350,
-            fit: BoxFit.contain,
-            errorBuilder: (context, erro, pilha) => const Text(
-              'Ikai',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Cores.laranja,
+      body: SizedBox.expand(
+        child: PaisagemView(
+          paisagem: Paisagem.alvorecer,
+          ajuste: AjustePaisagem.largura,
+          child: SafeArea(
+            child: Align(
+              alignment: const Alignment(0, -0.35),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 1100),
+                curve: Curves.easeOut,
+                builder: (context, v, filho) => Opacity(
+                  opacity: v,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - v) * 16),
+                    child: filho,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Image.asset(
+                    'assets/ikai.png',
+                    height: 300,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, erro, pilha) => const Text(
+                      'Ikai',
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Cores.laranja,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

@@ -39,6 +39,16 @@ class MainApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Cores.laranja),
             useMaterial3: true,
+            scaffoldBackgroundColor: Cores.fundo,
+            chipTheme: ChipThemeData(
+              backgroundColor: Colors.white,
+              selectedColor: Cores.verdeClaro,
+              checkmarkColor: Cores.verde,
+              side: const BorderSide(color: Cores.bordaQuente),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
           ),
           // O SessaoGuard fica ACIMA do Navigator: conta o tempo do dia,
           // mostra os avisos e o botão da Ik AI e, quando a meta acaba,

@@ -58,14 +58,14 @@ class _ResgatarSenhaPageState extends State<ResgatarSenhaPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 15),
-              const LogoIkai(),
-              const SizedBox(height: 50),
+              const CabecalhoLogin(altura: 140),
+              const SizedBox(height: 32),
               Text(
                 'Recuperar senha',
                 style: GoogleFonts.inter(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
+                  color: Cores.tituloVerde,
                 ),
               ),
               const SizedBox(height: 20),

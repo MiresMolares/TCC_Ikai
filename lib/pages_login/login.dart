@@ -118,14 +118,14 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 25),
-              const LogoIkai(),
-              const SizedBox(height: 35),
+              const CabecalhoLogin(),
+              const SizedBox(height: 28),
               Text(
                 'Entre na sua conta',
                 style: GoogleFonts.inter(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
+                  color: Cores.tituloVerde,
                 ),
               ),
               const SizedBox(height: 20),
@@ -163,6 +163,7 @@ class _LoginPageState extends State<LoginPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Checkbox(
+                          activeColor: Cores.verde,
                           value: _lembrar,
                           onChanged: (v) =>
                               setState(() => _lembrar = v ?? false),
@@ -190,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                       'Esqueceu a senha?',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                        color: Cores.verde,
                       ),
                     ),
                   ),
@@ -234,7 +235,7 @@ class _LoginPageState extends State<LoginPage> {
                       'Cadastre-se',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                        color: Cores.verde,
                       ),
                     ),
                   ),

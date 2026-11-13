@@ -87,13 +87,14 @@ class _CadastroPageState extends State<CadastroPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const LogoIkai(),
-              const SizedBox(height: 30),
+              const CabecalhoLogin(altura: 140),
+              const SizedBox(height: 24),
               Text(
                 'Crie sua conta',
                 style: GoogleFonts.inter(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
+                  color: Cores.tituloVerde,
                 ),
               ),
               const SizedBox(height: 10),
@@ -176,7 +177,7 @@ class _CadastroPageState extends State<CadastroPage> {
                       'Entrar',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                        color: Cores.verde,
                       ),
                     ),
                   ),

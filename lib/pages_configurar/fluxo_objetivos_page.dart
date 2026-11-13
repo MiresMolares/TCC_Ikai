@@ -7,6 +7,7 @@ import '../services/tempo_diario.dart';
 import '../widgets/cartao_checkin.dart';
 import '../widgets/cartao_uso_semanal.dart';
 import '../widgets/estilo.dart';
+import '../widgets/paisagem.dart';
 import 'controle_objetivo.dart';
 
 // =====================================================
@@ -116,12 +117,16 @@ class CategoriaQuadrada extends StatelessWidget {
   final bool sugerida;
   final VoidCallback onTap;
 
+  /// Cores do objetivo a que a categoria pertence.
+  final TemaObjetivo tema;
+
   const CategoriaQuadrada({
     super.key,
     required this.categoria,
     required this.selecionada,
     required this.sugerida,
     required this.onTap,
+    this.tema = temaPadrao,
   });
 
   @override
@@ -137,11 +142,11 @@ class CategoriaQuadrada extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: selecionada ? const Color(0xFFE4EFE5) : Colors.white,
+            color: selecionada ? tema.claro : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selecionada
-                  ? Cores.laranja
+                  ? tema.principal
                   : mostrarSugestao
                       ? const Color(0xFF8FA3B5)
                       : const Color(0xFFE0E5DF),
@@ -160,14 +165,12 @@ class CategoriaQuadrada extends StatelessWidget {
                         width: 68,
                         height: 68,
                         decoration: BoxDecoration(
-                          color: selecionada
-                              ? const Color(0xFFD0E3D2)
-                              : const Color(0xFFF0F3EE),
+                          color: selecionada ? Colors.white : tema.suave,
                           borderRadius: BorderRadius.circular(18),
                         ),
                         child: Icon(
                           categoria.icone,
-                          color: Cores.laranja,
+                          color: tema.principal,
                           size: 42,
                         ),
                       ),
@@ -177,10 +180,10 @@ class CategoriaQuadrada extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Cores.tituloVerde,
+                          color: tema.escuro,
                         ),
                       ),
                     ],
@@ -192,7 +195,7 @@ class CategoriaQuadrada extends StatelessWidget {
                 right: 8,
                 child: Icon(
                   selecionada ? Icons.check_circle : Icons.circle_outlined,
-                  color: selecionada ? Cores.laranja : Colors.grey.shade400,
+                  color: selecionada ? tema.principal : Colors.grey.shade400,
                   size: 24,
                 ),
               ),
@@ -231,6 +234,10 @@ class GradeCategorias extends StatelessWidget {
   final bool Function(String id) estaSelecionada;
   final Set<String> sugeridas;
   final ValueChanged<Categoria> aoAlternar;
+  final TemaObjetivo tema;
+
+  /// false: a grade não rola sozinha (fica dentro de uma lista maior).
+  final bool rolavel;
 
   const GradeCategorias({
     super.key,
@@ -238,11 +245,16 @@ class GradeCategorias extends StatelessWidget {
     required this.estaSelecionada,
     required this.sugeridas,
     required this.aoAlternar,
+    this.tema = temaPadrao,
+    this.rolavel = true,
   });
 
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      shrinkWrap: !rolavel,
+      physics: rolavel ? null : const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       itemCount: categorias.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -257,8 +269,203 @@ class GradeCategorias extends StatelessWidget {
           selecionada: estaSelecionada(cat.id),
           sugerida: sugeridas.contains(cat.id),
           onTap: () => aoAlternar(cat),
+          tema: tema,
         );
       },
+    );
+  }
+}
+
+/// Objetivo como um lugar: a paisagem em cima, o nome embaixo. Escolher um
+/// objetivo é escolher para onde ir hoje.
+class ObjetivoCartao extends StatelessWidget {
+  final Objetivo objetivo;
+  final bool selecionado;
+  final bool sugerido;
+  final VoidCallback onTap;
+
+  const ObjetivoCartao({
+    super.key,
+    required this.objetivo,
+    required this.selecionado,
+    required this.sugerido,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = temaDoObjetivo(objetivo.id);
+    final mostrarSugestao = sugerido && !selecionado;
+    final destaque = selecionado || mostrarSugestao;
+
+    return Semantics(
+      button: true,
+      selected: selecionado,
+      label: objetivo.titulo,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selecionado
+                  ? tema.principal
+                  : mostrarSugestao
+                      ? const Color(0xFF8FA3B5)
+                      : Cores.bordaQuente,
+              width: destaque ? 3 : 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: Column(
+              children: [
+                Expanded(
+                  flex: 11,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      PaisagemView(paisagem: tema.paisagem),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            selecionado
+                                ? Icons.check_circle
+                                : Icons.circle_outlined,
+                            color: selecionado
+                                ? tema.principal
+                                : Colors.grey.shade400,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                      if (mostrarSugestao)
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'Sugestão',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4F6275),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 9,
+                  child: Container(
+                    width: double.infinity,
+                    color: selecionado ? tema.claro : Colors.white,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(objetivo.icone, size: 18, color: tema.principal),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                objetivo.titulo,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.15,
+                                  color: tema.escuro,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${objetivo.categorias.length} categorias',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Cores.subtitulo,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Faixa de progresso das etapas: segmentos que se enchem na cor do objetivo,
+/// como um broto que vai crescendo.
+class _TrilhaEtapas extends StatelessWidget {
+  final int atual;
+  final int total;
+  final Color cor;
+
+  const _TrilhaEtapas({
+    required this.atual,
+    required this.total,
+    required this.cor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            for (var i = 0; i < total; i++)
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  height: 6,
+                  margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
+                  decoration: BoxDecoration(
+                    color: i <= atual ? cor : Cores.bordaQuente,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Etapa ${atual + 1} de $total',
+          style: const TextStyle(fontSize: 13, color: Cores.subtitulo),
+        ),
+      ],
     );
   }
 }
@@ -376,35 +583,34 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
           );
         }
 
+        final tema = temaDoObjetivo(c.objetivo?.id);
         return PopScope(
           canPop: c.etapa == 0,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) c.voltar();
           },
           child: Scaffold(
-            backgroundColor: Cores.fundoEtapas,
-            body: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
+            backgroundColor: Colors.transparent,
+            body: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              color: c.objetivo == null ? Cores.fundo : tema.suave,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TrilhaEtapas(
+                        atual: c.etapa,
+                        total: c.etapas.length,
+                        cor: tema.principal,
                       ),
-                      color: const Color(0xFFEDF1F3),
-                      child: Text(
-                        'Etapa ${c.etapa + 1} de ${c.etapas.length}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(child: _corpo()),
-                    const SizedBox(height: 16),
-                    _rodape(),
-                  ],
+                      const SizedBox(height: 16),
+                      Expanded(child: _corpo(tema)),
+                      const SizedBox(height: 16),
+                      _rodape(tema),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -414,10 +620,12 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
     );
   }
 
-  Widget _corpo() {
+  Widget _corpo(TemaObjetivo tema) {
     switch (c.etapaAtual) {
       case EtapaFluxo.objetivo:
         final lista = todosOsObjetivos;
+        // Com texto maior, os cartões ficam mais altos para o título caber.
+        final fatorTexto = MediaQuery.textScalerOf(context).scale(10) / 10;
         // Primeira etapa rola inteira: traz o combinado pendente e, para
         // quem já usa de forma recorrente, os dados de uso.
         return ListView(
@@ -425,24 +633,61 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
             const CartaoCheckIn(),
             const CartaoUsoSemanal(),
             _cabecalho(),
-            for (final o in lista) ...[
-              OpcaoCard(
-                titulo: o.titulo,
-                icone: o.icone,
-                selecionado: c.objetivo?.id == o.id,
-                sugerido: c.sugestaoObjetivoId == o.id,
-                onTap: () => c.selecionarObjetivo(o),
-              ),
-              const SizedBox(height: 12),
-            ],
+            GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.82 / fatorTexto.clamp(1.0, 1.6).toDouble(),
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: [
+                for (final o in lista)
+                  ObjetivoCartao(
+                    objetivo: o,
+                    selecionado: c.objetivo?.id == o.id,
+                    sugerido: c.sugestaoObjetivoId == o.id,
+                    onTap: () => c.selecionarObjetivo(o),
+                  ),
+              ],
+            ),
           ],
         );
       case EtapaFluxo.categorias:
         final sugeridas = c.sugestaoCategoriaIds;
         final semEscolha = c.categorias.isEmpty;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return ListView(
           children: [
+            PaisagemView(
+              paisagem: tema.paisagem,
+              altura: 96,
+              raio: BorderRadius.circular(22),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${c.objetivo!.titulo} · ${tema.lugar}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: tema.escuro,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             _cabecalho(),
             Row(
               children: [
@@ -470,22 +715,22 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
               ],
             ),
             const SizedBox(height: 8),
-            Expanded(
-              child: GradeCategorias(
-                categorias: c.objetivo!.categorias,
-                estaSelecionada: c.temCategoria,
-                sugeridas: sugeridas,
-                aoAlternar: (cat) {
-                  final ok = c.alternarCategoria(cat);
-                  if (!ok) {
-                    mostrarAviso(
-                      context,
-                      'No máximo ${ControleObjetivos.maxCategorias} '
-                      'categorias. Desmarque uma para trocar.',
-                    );
-                  }
-                },
-              ),
+            GradeCategorias(
+              rolavel: false,
+              categorias: c.objetivo!.categorias,
+              tema: tema,
+              estaSelecionada: c.temCategoria,
+              sugeridas: sugeridas,
+              aoAlternar: (cat) {
+                final ok = c.alternarCategoria(cat);
+                if (!ok) {
+                  mostrarAviso(
+                    context,
+                    'No máximo ${ControleObjetivos.maxCategorias} '
+                    'categorias. Desmarque uma para trocar.',
+                  );
+                }
+              },
             ),
           ],
         );
@@ -506,7 +751,7 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
     }
   }
 
-  Widget _rodape() {
+  Widget _rodape(TemaObjetivo tema) {
     final ultima = c.etapa == c.ultimaEtapa;
     return Row(
       children: [
@@ -541,7 +786,7 @@ class _FluxoObjetivosPageState extends State<FluxoObjetivosPage> {
                     }
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Cores.laranja,
+                backgroundColor: tema.principal,
                 disabledBackgroundColor: const Color(0xFFCAD5CA),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(

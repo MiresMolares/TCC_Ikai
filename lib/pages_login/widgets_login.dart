@@ -2,9 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../widgets/estilo.dart';
+import '../widgets/paisagem.dart';
 
 /// Cor de fundo das telas de login, cadastro e recuperação de senha.
-const Color fundoLogin = Color.fromARGB(255, 237, 241, 243);
+const Color fundoLogin = Cores.fundo;
+
+/// Faixa de abertura das telas de login: o alvorecer com a logo.
+class CabecalhoLogin extends StatelessWidget {
+  final double altura;
+  const CabecalhoLogin({super.key, this.altura = 190});
+
+  @override
+  Widget build(BuildContext context) {
+    return PaisagemView(
+      paisagem: Paisagem.alvorecer,
+      altura: altura,
+      raio: BorderRadius.circular(28),
+      child: Center(child: LogoIkai(altura: altura * 0.95)),
+    );
+  }
+}
 
 /// Logo no topo das telas de login. Mostra o nome se a imagem faltar.
 class LogoIkai extends StatelessWidget {
@@ -74,8 +91,15 @@ class CampoLogin extends StatelessWidget {
       decoration: InputDecoration(
         labelText: rotulo,
         labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        floatingLabelStyle: GoogleFonts.inter(
+          fontWeight: FontWeight.bold,
+          color: Cores.verde,
+        ),
         hintText: dica,
+        filled: true,
+        fillColor: Colors.white,
         prefixIcon: Icon(icone),
+        prefixIconColor: Cores.verde,
         suffixIcon: senha
             ? IconButton(
                 tooltip: esconder ? 'Mostrar senha' : 'Ocultar senha',
@@ -85,7 +109,18 @@ class CampoLogin extends StatelessWidget {
                 ),
               )
             : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Cores.bordaQuente),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Cores.bordaQuente),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Cores.verde, width: 2),
+        ),
       ),
     );
   }
@@ -107,11 +142,10 @@ class BotaoPrincipal extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: Cores.laranja,
           foregroundColor: Colors.white,
-          elevation: 4,
-          shadowColor: Colors.black38,
+          elevation: 2,
+          shadowColor: Colors.black26,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Color(0xFF4B86ED), width: 1.5),
           ),
         ),
         child: Text(
@@ -146,14 +180,10 @@ class BotaoSocial extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
-          elevation: 4,
-          shadowColor: Colors.black38,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(
-              color: Color.fromARGB(255, 238, 210, 29),
-              width: 1.5,
-            ),
+            side: const BorderSide(color: Cores.bordaQuente, width: 1.5),
           ),
         ),
         child: Row(
@@ -191,12 +221,12 @@ class DivisorOu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: Colors.white, thickness: 1)),
+        const Expanded(child: Divider(color: Cores.bordaQuente, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Text('ou', style: GoogleFonts.inter()),
         ),
-        const Expanded(child: Divider(color: Colors.white, thickness: 1)),
+        const Expanded(child: Divider(color: Cores.bordaQuente, thickness: 1)),
       ],
     );
   }

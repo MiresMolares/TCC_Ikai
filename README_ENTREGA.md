@@ -1,4 +1,14 @@
-# Ikai - entrega v6 (banco de dados, Ik AI de verdade, botão só na Home)
+# Ikai - entrega v8 (mais categorias e identidade visual)
+
+## Novidades da v8
+1. **60 categorias em 4 objetivos.** Ver conteúdo 16, Ler 16, Estudar 16 e o novo objetivo **Aprender um ofício** (12: marcenaria, elétrica, hidráulica, culinária, panificação, costura, jardinagem, mecânica, fotografia, desenho, artesanato, instrumento). Cada categoria nova tem um artigo (a031 a a060). A conquista "Três caminhos" virou "Quatro caminhos". O catálogo do servidor (`backend/src/catalogo.js`) é uma cópia do app e um teste confere item a item.
+2. **Identidade "natureza e crescimento".** Seguindo a logo (broto, folhas verdes, terracota), cada objetivo é um lugar com paisagem e cor próprias: Ver conteúdo = Alvorecer (terracota), Ler = Floresta (verde), Estudar = Nascente (azul-esverdeado), Aprender um ofício = Campo (ocre). O dia também tem paisagens: alvorecer na abertura e no login, entardecer quando o tempo acaba, noite no descanso.
+3. **Onde aparece:** abertura e login/cadastro/recuperar senha; escolha de objetivo (4 cartões ilustrados) e de categorias (cores do objetivo); Início (faixa com a paisagem do objetivo de hoje), cartões e página de artigo; fim do tempo e descanso.
+4. **Como mexer:** as ilustrações estão em `lib/widgets/paisagens_dados.dart` (desenhos) e `lib/widgets/paisagem.dart` (como são desenhadas e a paleta de cada objetivo, em `TemaObjetivo`). Para trocar a cor de um objetivo, edite a lista `_temas`; para redesenhar uma cena, edite `tools/gerar_paisagens.py` e rode `python3 tools/gerar_paisagens.py` (gera também `tools/paisagens_previa.html`).
+5. **Testes:** `flutter test` agora tem 17 arquivos e 280 testes de lógica (novos: catálogo com 60 categorias, desenhos bem formados, tema de cada objetivo).
+
+# Notas da v6 (continuam valendo)
+
 
 ## Novidades da v6
 1. **Botão flutuante da Ik AI só na Home.** Some nas etapas de escolha (objetivo, categorias), em Explorar, Perfil, leitura etc.
@@ -43,7 +53,7 @@ Não consegui testar o Gemini de verdade aqui (sem chave nem acesso à rede): a 
 1. Na raiz do projeto, APAGUE `lib/` e `test/` e copie as deste pacote no lugar. Mantenha `assets/`.
 2. `flutter pub get`
 3. `flutter run` (sem Gemini: as sugestões da Ik AI são geradas no aparelho). No navegador: `flutter run -d chrome`. Para ligar o Gemini, veja a seção abaixo.
-4. `flutter test` (15 arquivos, 266 testes de lógica).
+4. `flutter test` (17 arquivos, 280 testes de lógica).
 
 Conta de teste: `adm@email.com` / `1234`.
 
@@ -96,7 +106,7 @@ Feed finito; histórico só como sugestão (nunca aplicado sozinho); notificaç�
 - A meta diária é **negociada**, não "intransponível": a pessoa pode pedir mais tempo, justificando. Mitigações: no máximo 2 prorrogações por dia, de até 30 min, com justificativa registrada, e o balanço semanal confronta o uso com a meta. Se a banca exigir bloqueio absoluto, é só definir `maxProrrogacoes = 0` em `tempo_diario.dart`.
 - Os avisos (metade e fim) são **dentro do app**, não notificações do sistema operacional: com o app fechado nada é enviado (coerente com "notificações reduzidas"; push exigiria plugin e permissão).
 - A contagem depende do relógio do aparelho: adiantar o relógio para o dia seguinte zera o dia. Só um servidor resolve.
-- A interface nova (grade de categorias, tela de meta, avisos, botão flutuante, telas de conteúdo) **não pôde ser compilada** no ambiente onde foi escrita; a lógica está testada, as telas precisam rodar uma vez com `flutter run`. Se o analisador reclamar de algo, me envie a mensagem.
+- A interface (grade de categorias, tela de meta, avisos, botão flutuante, paisagens) **não pôde ser aberta num aparelho** no ambiente onde foi escrita. Todo o código foi conferido pelo analisador do Dart contra os fontes do Flutter 3.35 (sem erros novos), e a lógica está testada, mas o visual só se confirma rodando `flutter run`. Se algo ficar fora do lugar, me envie uma captura de tela.
 - Sem `API_URL`, o conteúdo criado por usuários é local; com ela, vai para o banco. Moderação (denúncia, bloqueio) ainda não existe.
 - Sem `API_URL`, contas são de mentira, em memória; textos de privacidade e termos são preliminares; botões de login social só mostram aviso.
 

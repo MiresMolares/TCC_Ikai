@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../data/artigo.dart';
+import '../pages_configurar/controle_objetivo.dart' show buscarObjetivo;
 import '../services/biblioteca_service.dart';
 import '../services/progresso_service.dart';
 import '../widgets/estilo.dart';
+import '../widgets/paisagem.dart';
 import '../widgets/salvar_em_pasta.dart';
 
 void abrirArtigo(BuildContext context, Artigo artigo) {
@@ -32,6 +34,10 @@ class ArtigoPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tema = temaDoObjetivo(artigo.objetivoId);
+    final categoria = buscarObjetivo(artigo.objetivoId)
+        ?.buscarCategoria(artigo.categoriaId)
+        ?.titulo;
     return Scaffold(
       backgroundColor: Cores.fundo,
       appBar: AppBar(
@@ -46,7 +52,7 @@ class ArtigoPage extends StatelessWidget {
                 onPressed: () => mostrarSalvarEmPasta(context, artigo),
                 icon: Icon(
                   salvo ? Icons.bookmark : Icons.bookmark_border,
-                  color: salvo ? Cores.laranja : Cores.titulo,
+                  color: salvo ? tema.principal : Cores.titulo,
                 ),
               );
             },
@@ -57,13 +63,44 @@ class ArtigoPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           children: [
+            PaisagemView(
+              paisagem: tema.paisagem,
+              altura: 130,
+              raio: BorderRadius.circular(22),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${categoria ?? tema.lugar} · '
+                      '${Artigo.nomeDoNivel(artigo.nivel)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: tema.escuro,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text(
               artigo.titulo,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 height: 1.25,
-                color: Cores.titulo,
+                color: tema.escuro,
               ),
             ),
             const SizedBox(height: 8),
@@ -92,7 +129,7 @@ class ArtigoPage extends StatelessWidget {
                 for (final t in artigo.tags)
                   Chip(
                     label: Text(t, style: const TextStyle(fontSize: 12)),
-                    backgroundColor: Cores.verdeClaro,
+                    backgroundColor: tema.claro,
                     side: BorderSide.none,
                   ),
               ],
@@ -115,10 +152,10 @@ class ArtigoPage extends StatelessWidget {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Cores.laranja,
+                      backgroundColor: tema.principal,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: Cores.verdeClaro,
-                      disabledForegroundColor: Cores.verde,
+                      disabledBackgroundColor: tema.claro,
+                      disabledForegroundColor: tema.principal,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
